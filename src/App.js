@@ -44,7 +44,7 @@ const initialCalendarData = [
   { date: 18, day: 'Wed', weather: { high: 73, icon: getWeatherIcon(73) }, promos: [
     { id: 'promo7', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
   ], holiday: null, weekLabel: ''},
-  { date: 19, day: 'Thu', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "Freedom Day", highlight: true }, weekLabel: '' },
+  { date: 19, day: 'Thu', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "", highlight: true }, weekLabel: '' },
   { date: 20, day: 'Fri', weather: { high: 90, icon: getWeatherIcon(90) }, promos: [], holiday: null, weekLabel: '' },
   { date: 21, day: 'Sat', weather: { high: 91, icon: getWeatherIcon(91) }, promos: [], holiday: null, weekLabel: '' },
   { date: 22, day: 'Sun', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], holiday: null, weekLabel: '' },
