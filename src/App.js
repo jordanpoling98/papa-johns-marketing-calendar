@@ -62,7 +62,7 @@ const initialCalendarData = [
   // { date: 31, day: 'Tue', weather: { high: 75, icon: getWeatherIcon(75) }, promos: [], holiday: null, weekLabel: '' },
 ];
 
-// Custom Alert Modal Component (simplified)
+// Custom Alert Modal Component
 const AlertModal = ({ message, onClose }) => {
   return (
     <div className="modal-overlay visible">
@@ -92,17 +92,17 @@ const App = () => {
   const [backgroundSuggestion, setBackgroundSuggestion] = useState(''); // For LLM background suggestion
   const [isLoadingBackgroundSuggestion, setIsLoadingBackgroundSuggestion] = useState(false);
 
-  // State for custom alert modal (simplified)
+  // State for custom alert modal
   const [isAlertModalVisible, setIsAlertModalVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
-  // Function to show custom alert (simplified)
+  // Function to show custom alert
   const showAlert = (message) => {
     setAlertMessage(message);
     setIsAlertModalVisible(true);
   };
 
-  // Function to hide custom alert (simplified)
+  // Function to hide custom alert
   const hideAlert = () => {
     setIsAlertModalVisible(false);
     setAlertMessage('');
@@ -133,11 +133,8 @@ const App = () => {
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
-  // State to hold selected day's data for the Details modal
-  const [selectedDayForPromoDetails, setSelectedDayForPromoDetails] = useState(null);
-
-  // Gemini API Key - Now using environment variable
-  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+  // Gemini API Key
+  const GEMINI_API_KEY = "AIzaSyAa7Fkbw1GRZD2DTCgvq-lHWFYKnX1GNzE";
 
 
   // Function to open Add Event modal
@@ -330,52 +327,58 @@ const App = () => {
 
 
   const handleDeleteEvent = (dayDate, promoId) => {
-    // Simplified to just an alert for now
-    showAlert('Are you sure you want to delete this event?');
-    setCalendar(prevCalendar => prevCalendar.map(day => {
-      if (day.date === dayDate) {
-        return {
-          ...day,
-          promos: day.promos.filter(promo => promo.id !== promoId)
-        };
-      }
-      return day;
-    }));
+    // Using custom alert for confirmation
+    showAlert('Are you sure you want to delete this event?', () => {
+      setCalendar(prevCalendar => prevCalendar.map(day => {
+        if (day.date === dayDate) {
+          return {
+            ...day,
+            promos: day.promos.filter(promo => promo.id !== promoId)
+          };
+        }
+        return day;
+      }));
+      hideAlert(); // Close alert after action
+    });
   };
 
   const handleDeleteHoliday = (dayDate) => {
-    // Simplified to just an alert for now
-    showAlert('Are you sure you want to delete this holiday?');
-    setCalendar(prevCalendar => prevCalendar.map(day => {
-      if (day.date === dayDate) {
-        return {
-          ...day,
-          holiday: null, // Remove the holiday object
-          specialDay: '', // Clear special day class
-          specialText: '' // Clear special text
-        };
-      }
-      return day;
-    }));
+    // Using custom alert for confirmation
+    showAlert('Are you sure you want to delete this holiday?', () => {
+      setCalendar(prevCalendar => prevCalendar.map(day => {
+        if (day.date === dayDate) {
+          return {
+            ...day,
+            holiday: null, // Remove the holiday object
+            specialDay: '', // Clear special day class
+            specialText: '' // Clear special text
+          };
+        }
+        return day;
+      }));
+      hideAlert(); // Close alert after action
+    });
   };
 
   const handleDeleteDay = (dayDate) => {
-    // Simplified to just an alert for now
-    showAlert(`Are you sure you want to clear all content for day ${dayDate}?`);
-    setCalendar(prevCalendar => prevCalendar.map(day => {
-        if (day.date === dayDate) {
-            return {
-                ...day,
-                promos: [],
-                holiday: null,
-                specialDay: '',
-                specialText: '',
-                weather: { high: null, icon: '' }, // Clear weather
-                weekLabel: '' // Clear week label
-            };
-        }
-        return day;
-    }));
+    // Using custom alert for confirmation
+    showAlert(`Are you sure you want to clear all content for day ${dayDate}?`, () => {
+        setCalendar(prevCalendar => prevCalendar.map(day => {
+            if (day.date === dayDate) {
+                return {
+                    ...day,
+                    promos: [],
+                    holiday: null,
+                    specialDay: '',
+                    specialText: '',
+                    weather: { high: null, icon: '' }, // Clear weather
+                    weekLabel: '' // Clear week label
+                };
+            }
+            return day;
+        }));
+        hideAlert(); // Close alert after action
+    });
   };
 
   // Function to copy text to clipboard
@@ -394,11 +397,10 @@ const App = () => {
     document.body.removeChild(textarea);
   };
 
-  const generatePromoCopy = async (promoText, dayData) => { // Added dayData parameter
+  const generatePromoCopy = async (promoText) => {
     setIsPromoModalVisible(true);
     setPromoCopyOutput('');
     setIsLoadingPromo(true);
-    setSelectedDayForPromoDetails(dayData); // Set the day data for details view
 
     const prompt = `Generate a short, engaging social media post for the following Papa John's promotion: "${promoText}". Keep it under 200 characters and include relevant emojis.`;
 
@@ -648,8 +650,8 @@ const App = () => {
                           </div>
                         )}
                         
-                        {dayData.promos.map((promo) => ( // Removed promoIndex, using promo.id for key
-                          <div className="card" key={promo.id}> {/* Changed key to promo.id */}
+                        {dayData.promos.map((promo, promoIndex) => (
+                          <div className="card" key={promoIndex}>
                             <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : ''}`}>
                               {promo.text}
                             </div>
@@ -662,7 +664,7 @@ const App = () => {
                               className="generate-promo-star"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                generatePromoCopy(`${promo.text} ${promo.detail || ''}`, dayData); // Pass dayData here
+                                generatePromoCopy(`${promo.text} ${promo.detail || ''}`);
                               }}
                               title="Generate Promo Copy"
                             >
@@ -709,70 +711,26 @@ const App = () => {
         </table>
       </div>
 
-      {/* Promo Copy Modal Structure - Updated for "Details" */}
+      {/* Promo Copy Modal Structure */}
       {isPromoModalVisible && (
         <div id="promoCopyModalOverlay" className="modal-overlay visible">
           <div className="modal-content">
-            <button className="modal-close-btn" onClick={() => {
-                setIsPromoModalVisible(false);
-                setSelectedDayForPromoDetails(null); // Clear selected day data on close
-            }}>&times;</button>
-            <div className="modal-title">Details</div> {/* Changed modal title */}
-
-            {/* New: Day Details Section */}
-            {selectedDayForPromoDetails && (
-                <div className="day-details-section">
-                    <h3>Day Overview</h3>
-                    <p><strong>Date:</strong> {selectedDayForPromoDetails.date} ({selectedDayForPromoDetails.day})</p>
-                    {selectedDayForPromoDetails.weather.high && (
-                        <p><strong>Weather:</strong> {selectedDayForPromoDetails.weather.icon} {selectedDayForPromoDetails.weather.high}°F</p>
-                    )}
-                    {selectedDayForPromoDetails.holiday && (
-                        <p><strong>Holiday:</strong> {selectedDayForPromoDetails.holiday.title} {selectedDayForPromoDetails.holiday.notes ? `(${selectedDayForPromoDetails.holiday.notes})` : ''}</p>
-                    )}
-                    {selectedDayForPromoDetails.promos.length > 0 && (
-                        <div>
-                            <h4>Promotions:</h4>
-                            <ul>
-                                {selectedDayForPromoDetails.promos.map((p) => (
-                                    <li key={p.id}>- {p.text} {p.detail ? `(${p.detail})` : ''}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                    {selectedDayForPromoDetails.weekLabel && (
-                        <p><strong>Week Label:</strong> {selectedDayForPromoDetails.weekLabel}</p>
-                    )}
-                    <button
-                        className="edit-day-properties-btn" // New class for this button
-                        onClick={() => {
-                            setIsPromoModalVisible(false); // Close current modal first
-                            openEditDayModal(selectedDayForPromoDetails.date); // Open the existing edit day modal
-                        }}
-                    >
-                        Edit Day Properties ✏️
-                    </button>
-                </div>
+            <button className="modal-close-btn" onClick={() => setIsPromoModalVisible(false)}>&times;</button>
+            <div className="modal-title">Generated Promo Copy</div>
+            {isLoadingPromo ? (
+              <div className="loading-indicator">Generating...</div>
+            ) : (
+              <>
+                <div className="promo-copy-output">{promoCopyOutput}</div>
+                <button
+                  className="copy-to-clipboard-btn"
+                  onClick={() => copyToClipboard(promoCopyOutput)}
+                  disabled={!promoCopyOutput}
+                >
+                  Copy to Clipboard 📋
+                </button>
+              </>
             )}
-
-            {/* Existing Generated Promo Copy Section */}
-            <div className="promo-copy-area">
-                <h3>Generated Promo Copy</h3> {/* Subheading for clarity */}
-                {isLoadingPromo ? (
-                    <div className="loading-indicator">Generating...</div>
-                ) : (
-                    <>
-                        <div className="promo-copy-output">{promoCopyOutput}</div>
-                        <button
-                        className="copy-to-clipboard-btn"
-                        onClick={() => copyToClipboard(promoCopyOutput)}
-                        disabled={!promoCopyOutput}
-                        >
-                        Copy to Clipboard 📋
-                        </button>
-                    </>
-                )}
-            </div>
           </div>
         </div>
       )}
@@ -1317,7 +1275,7 @@ const App = () => {
 
         /* Holiday Cell Backgrounds */
         /* These classes are applied to the <td> elements */
-        .special-day {
+        .special-day { /* Default for P6 Wk3, if it's not a specific holiday */
             background-color: #fffbf0;
             border: 2px solid #f9e0a0;
         }
@@ -1331,7 +1289,7 @@ const App = () => {
             border: 2px solid #DC143C; /* Crimson border */
             color: #333; /* Darker text for contrast */
         }
-        .custom-holiday {
+        .custom-holiday { /* New custom holiday background */
             background: linear-gradient(135deg, #E0FFFF 0%, #87CEFA 100%); /* Light Cyan to Light Sky Blue */
             border: 2px solid #4169E1; /* RoyalBlue border */
             color: #333; /* Darker text for contrast */
@@ -1369,9 +1327,9 @@ const App = () => {
         }
         .header-icon {
             vertical-align: middle;
-            margin: 0 10px;
-            width: 40px;
-            height: 40px;
+            margin: 0 10px; /* Increased margin for more space */
+            width: 40px; /* Larger icons */
+            height: 40px; /* Larger icons */
         }
 
         /* New styles for the hidden star emoji button */
@@ -1471,64 +1429,300 @@ const App = () => {
           text-align: center;
         }
 
-        .day-details-section {
-            background-color: #f8f8f8;
-            border: 1px solid #eee;
-            padding: 15px;
+        .promo-copy-output {
+          background-color: #f8f8f8;
+          border: 1px solid #eee;
+          padding: 15px;
+          border-radius: 8px;
+          min-height: 80px;
+          font-size: 0.9em;
+          line-height: 1.5;
+          color: #444;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .loading-indicator {
+          text-align: center;
+          padding: 20px;
+          font-style: italic;
+          color: #777;
+        }
+        .loading-indicator::after {
+          content: '...';
+          animation: loading-dots 1s infinite;
+        }
+        @keyframes loading-dots {
+          0%, 20% { content: '.'; }
+          40% { content: '..'; }
+          60%, 100% { content: '...'; }
+        }
+
+        /* Add/Edit Event Form Styles */
+        .add-event-controls {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: flex-end; /* Align to the right */
+            margin-bottom: 15px;
+            position: relative; /* For dropdown positioning if needed later */
+        }
+
+        .add-button {
+            background-color: #006c3b;
+            color: #fff;
+            border: none;
             border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: left;
+            padding: 10px 15px;
+            font-size: 1.5em; /* Larger plus sign */
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            line-height: 1; /* Keep plus sign centered */
+            margin-left: 10px; /* Space between buttons */
         }
-        .day-details-section h3 {
-            font-size: 1.1em;
-            color: #006c3b;
-            margin-top: 0;
-            margin-bottom: 10px;
-            text-align: center;
+        .add-button:hover {
+            background-color: #005a30;
+            transform: translateY(-1px);
         }
-        .day-details-section p, .day-details-section ul {
+        .add-button:active {
+            transform: translateY(0);
+        }
+
+        .print-button {
+            background-color: #e0e0e0; /* Light grey for print button */
+            color: #555;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 1.5em; /* Same size as add button */
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            line-height: 1;
+            margin-left: 10px; /* Space between buttons */
+        }
+        .print-button:hover {
+            background-color: #d0d0d0;
+            transform: translateY(-1px);
+        }
+        .print-button:active {
+            transform: translateY(0);
+        }
+
+        .add-event-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
             font-size: 0.9em;
             color: #555;
             margin-bottom: 5px;
+            font-weight: 600;
         }
-        .day-details-section ul {
-            list-style: none;
-            padding-left: 0;
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .form-group input[type="number"]:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        .checkbox-group {
+            flex-direction: row; /* Checkbox label on same line */
+            align-items: center;
+            gap: 8px;
             margin-top: 5px;
         }
-        .day-details-section ul li {
-            margin-bottom: 3px;
+        .checkbox-group input[type="checkbox"] {
+            margin-bottom: 0;
         }
 
-        .edit-day-properties-btn {
-            background-color: #007bff;
-            color: #fff;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 6px;
+
+        .color-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+        }
+
+        .color-options label {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            font-weight: 400;
             cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s ease-in-out;
-            display: block;
-            margin-top: 15px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .edit-day-properties-btn:hover {
-            background-color: #0056b3;
         }
 
-        .promo-copy-area {
+        .color-options input[type="radio"] {
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        .submit-event-btn {
+            background-color: #c8102e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
             margin-top: 20px;
         }
+        .submit-event-btn:hover {
+            background-color: #a00d27;
+        }
 
-        .promo-copy-area h3 {
-            font-size: 1.1em;
-            color: #c8102e;
-            margin-top: 0;
-            margin-bottom: 10px;
-            text-align: center;
+        /* Edit/Delete Icons */
+        .edit-icon, .delete-icon {
+            position: absolute;
+            font-size: 0.9em; /* Smaller icons */
+            cursor: pointer;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
+            line-height: 1;
+            padding: 3px;
+            border-radius: 50%;
+            background-color: transparent;
+        }
+        /* Common hover for both promo and holiday icons */
+        .card:hover .edit-icon,
+        .card:hover .delete-icon,
+        .date-weather-group:hover .day-edit-icon, /* New: Day edit/delete hover */
+        .date-weather-group:hover .day-delete-icon,
+        .date-weather-group:hover .holiday-edit-icon,
+        .date-weather-group:hover .holiday-delete-icon {
+            opacity: 0.7; /* Visible on card/date-weather-group hover */
+        }
+        .edit-icon:hover, .delete-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        /* Promo card icons */
+        .card .edit-icon {
+            top: 4px; /* Align with star */
+            right: 28px; /* Position next to star */
+            color: #007bff; /* Blue for edit */
+        }
+        .card .delete-icon {
+            top: 4px; /* Align with star */
+            right: 50px; /* Position next to edit */
+            color: #dc3545; /* Red for delete */
+        }
+        /* Day edit/delete icons (positioned relative to date-weather-group) */
+        .day-edit-icon {
+            top: 0px; /* Aligned with top of date-weather-group */
+            right: 24px; /* Space from right */
+            color: #007bff;
+        }
+        .day-delete-icon {
+            top: 0px; /* Aligned with top of date-weather-group */
+            right: 2px; /* Close to the right edge */
+            color: #dc3545;
+        }
+        /* Holiday icons (positioned relative to date-weather-group) */
+        .holiday-edit-icon {
+            top: 24px; /* Positioned below date/weather */
+            right: 24px;
+            color: #007bff;
+        }
+        .holiday-delete-icon {
+            top: 24px; /* Positioned below date/weather */
+            right: 2px;
+            color: #dc3545;
+        }
+
+
+        /* New week-label-bubble style */
+        .week-label-bubble {
+            background-color: #e8f0f8;
+            color: #555;
+            font-size: 0.65em;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-top: auto;
+            align-self: flex-end;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #d0dbe8;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.visible {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .modal-content {
+          background-color: #fff;
+          padding: 25px;
+          border-radius: 10px;
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+          width: 90%;
+          max-width: 500px;
+          transform: translateY(-20px);
+          transition: transform 0.3s ease-in-out;
+          position: relative;
+        }
+        .modal-overlay.visible .modal-content {
+          transform: translateY(0);
+        }
+
+        .modal-close-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: none;
+          border: none;
+          font-size: 1.5em;
+          cursor: pointer;
+          color: #888;
+          transition: color 0.2s;
+        }
+        .modal-close-btn:hover {
+          color: #333;
+        }
+
+        .modal-title {
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 700;
+          font-size: 1.3em;
+          color: #c8102e;
+          margin-bottom: 15px;
+          text-align: center;
         }
 
         .promo-copy-output {
@@ -1563,177 +1757,184 @@ const App = () => {
         /* Print Styles */
         @media print {
             @page {
-                size: landscape;
-                margin: 0.5in;
+                size: landscape; /* Set page to landscape */
+                margin: 0.5in; /* Add a small margin for printing */
             }
             body {
-                background-color: #fff;
+                background-color: #fff; /* White background for print */
                 padding: 0;
                 margin: 0;
-                display: block;
+                display: block; /* Override flex for print */
                 width: 100%;
                 height: auto;
-                font-size: 10pt;
+                font-size: 10pt; /* Base font size for print */
             }
-            .add-event-controls,
-            .modal-overlay,
-            .generate-promo-star,
-            .edit-icon,
-            .delete-icon,
-            .header-icon,
-            .banner-edit-icon,
-            .copy-to-clipboard-btn,
-            .title-edit-icon,
-            .title-edit-container,
-            .title-edit-save-btn,
-            .edit-day-properties-btn {
+            .add-event-controls, /* Hide the add/print buttons */
+            .modal-overlay, /* Hide any open modals */
+            .generate-promo-star, /* Hide the AI star */
+            .edit-icon, /* Hide edit icon */
+            .delete-icon, /* Hide delete icon */
+            .header-icon, /* Hide header icons (graduation cap, sun) */
+            .banner-edit-icon, /* Hide banner edit icon */
+            .copy-to-clipboard-btn, /* Hide copy to clipboard button */
+            .title-edit-icon, /* Hide title edit icon */
+            .title-edit-container, /* Hide title edit container */
+            .title-edit-save-btn { /* Hide title save button */
                 display: none !important;
             }
-            .logo {
+            .logo { /* Re-show logo for print, but control its size */
                 display: block !important;
                 text-align: center !important;
-                margin-bottom: 8px !important;
+                margin-bottom: 8px !important; /* Reduced margin */
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 20px !important;
+                height: 20px !important; /* Smaller logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
-                filter: grayscale(50%);
+                filter: grayscale(50%); /* Slightly desaturate for ink saving */
             }
 
             .calendar-container {
-                box-shadow: none;
-                border: 1px solid #888;
+                box-shadow: none; /* No shadow in print */
+                border: 1px solid #888; /* More prominent border for print */
                 max-width: 100%;
                 width: 100%;
                 border-radius: 0;
-                overflow: visible;
-                background: #fff;
+                overflow: visible; /* Ensure content is not hidden */
+                background: #fff; /* White background for print */
             }
             .calendar-header {
                 box-shadow: none;
-                border-bottom: 1px solid #888;
-                padding: 0.4rem 0;
+                border-bottom: 1px solid #888; /* More prominent border for print */
+                padding: 0.4rem 0; /* Reduced padding */
                 border-radius: 0;
-                background-color: #f0f0f0;
+                background-color: #f0f0f0; /* Light grey background for header */
             }
             h1 {
-                font-size: 1.3em;
+                font-size: 1.3em; /* Smaller title for print */
                 margin-bottom: 0.1em;
-                color: #000;
+                color: #000; /* Black for print */
                 text-shadow: none;
-                cursor: default;
+                cursor: default; /* Remove pointer for print */
             }
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 6px 8px;
-                margin-bottom: 8px;
-                background-color: #c0c0c0;
-                color: #000;
-                border-bottom: 1px solid #888;
-                font-size: 0.9em;
+                padding: 6px 8px; /* Reduced padding */
+                margin-bottom: 8px; /* Reduced margin */
+                background-color: #c0c0c0; /* Slightly darker grey for banner in print */
+                color: #000; /* Black text for print */
+                border-bottom: 1px solid #888; /* Add a bottom border */
+                font-size: 0.9em; /* Smaller font for banner */
             }
             table {
                 width: 100%;
-                table-layout: fixed;
+                table-layout: fixed; /* Keep fixed layout for columns */
                 border-collapse: collapse;
             }
             th {
-                background-color: #f8f8f8;
-                border: 1px solid #888;
-                padding: 6px 4px;
-                font-size: 0.8em;
+                background-color: #f8f8f8; /* Very light background */
+                border: 1px solid #888; /* More prominent border */
+                padding: 6px 4px; /* Reduced padding */
+                font-size: 0.8em; /* Smaller font */
                 color: #000;
-                font-weight: 700;
+                font-weight: 700; /* Make headers bold */
             }
             td {
-                border: 1px solid #888;
-                height: auto;
-                min-height: 60px;
-                padding: 4px;
-                display: table-cell;
+                border: 1px solid #888; /* More prominent border */
+                height: auto; /* Allow height to expand */
+                min-height: 60px; /* Reduced minimum height for cells */
+                padding: 4px; /* Reduced padding */
+                display: table-cell; /* Crucial: Ensure td behaves as a table cell */
                 vertical-align: top;
-                page-break-inside: avoid;
+                page-break-inside: avoid; /* Prevent cells from breaking across pages */
             }
             .cell-content {
-                height: auto;
-                min-height: 0;
-                display: flex;
+                height: auto; /* Allow content to dictate height */
+                min-height: 0; /* Reset min-height */
+                display: flex; /* Keep flexbox for internal content layout */
                 flex-direction: column;
                 justify-content: flex-start;
                 align-items: flex-start;
             }
             .date-weather-group {
                 display: flex;
-                flex-direction: column;
+                flex-direction: column; /* Stack date and weather vertically */
                 align-items: flex-start;
-                gap: 2px;
-                margin-bottom: 4px;
-                position: relative;
+                gap: 2px; /* Smaller gap */
+                margin-bottom: 4px; /* Less space */
+                position: relative; /* For holiday edit/delete icons in print */
                 width: 100%;
             }
             /* Holiday date background in print */
             .date-number-wrapper {
-                background-color: transparent;
+                background-color: transparent; /* Default transparent */
                 border: none;
                 padding: 0;
                 border-radius: 0;
             }
             .highlight-holiday-cell .date-number-wrapper {
-                background-color: #FFD700 !important;
+                background-color: #FFD700 !important; /* Solid yellow for highlight */
                 border: 1px solid #DAA520 !important;
                 padding: 2px 4px;
                 border-radius: 4px;
             }
             .date-number {
-                font-size: 1em;
+                font-size: 1em; /* Smaller date number */
                 color: #000;
                 font-weight: 700;
             }
             .weather {
-                font-size: 0.65em;
+                font-size: 0.65em; /* Even smaller weather text */
                 color: #555;
             }
             .badge {
-                padding: 3px 5px;
-                font-size: 0.65em;
+                padding: 3px 5px; /* Reduced padding */
+                font-size: 0.65em; /* Smaller font */
                 box-shadow: none;
-                border: 1px solid #999;
-                background-color: #f5f5f5;
-                color: #333;
-                page-break-inside: avoid;
-                margin-bottom: 2px;
+                border: 1px solid #999; /* More prominent border for badges */
+                background-color: #f5f5f5; /* Lighter background */
+                color: #333; /* Darker text */
+                page-break-inside: avoid; /* Prevent badges from breaking */
+                margin-bottom: 2px; /* Less space between badges/cards */
+            }
+            .badge.two-dollar {
+                background-color: #ffe8eb; /* Keep light red */
+                color: #c8102e;
+            }
+            .badge.rmp50 {
+                background-color: #e8f5e8; /* Keep light green */
+                color: #006c3b;
             }
             .badge.special-text-badge {
-                background: #c0c0c0 !important;
+                background: #c0c0c0 !important; /* Darker grey for special badges in print */
                 color: #000 !important;
                 border: 1px solid #888 !important;
             }
             .card {
                 box-shadow: none;
-                padding: 4px;
-                margin-top: 4px;
-                border: 1px solid #ccc;
+                padding: 4px; /* Reduced padding */
+                margin-top: 4px; /* Reduced margin */
+                border: 1px solid #ccc; /* Lighter card border */
                 background-color: #fff;
-                page-break-inside: avoid;
+                page-break-inside: avoid; /* Prevent cards from breaking */
             }
             .promo-detail {
-                font-size: 0.55em;
-                margin-top: 2px;
+                font-size: 0.55em; /* Even smaller font */
+                margin-top: 2px; /* Less space */
                 color: #666;
             }
             .week-label-bubble {
-                background-color: #e0e0e0;
+                background-color: #e0e0e0; /* Darker grey */
                 color: #333;
-                font-size: 0.55em;
-                padding: 2px 5px;
+                font-size: 0.55em; /* Even smaller font */
+                padding: 2px 5px; /* Reduced padding */
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 4px;
-                align-self: flex-start;
+                margin-top: 4px; /* Adjust margin for print */
+                align-self: flex-start; /* Align to left in print */
             }
         }
 
@@ -1773,8 +1974,8 @@ const App = () => {
                 height: 20px;
             }
             .header-icon { 
-                width: 25px;
-                height: 25px;
+                width: 25px; /* Adjusted for mobile */
+                height: 25px; /* Adjusted for mobile */
                 margin: 0 5px;
             }
             .modal-content {
