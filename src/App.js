@@ -4,64 +4,69 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
-// Define a helper function to get weather icon based on temperature
-const getWeatherIcon = (temp) => {
-  if (temp >= 75) return '☀️'; // Sunny for 75°F and above
-  if (temp >= 65) return '☁️'; // Cloudy for 65°F to 74°F
-  return '🌧️'; // Rainy/cooler for below 65°F
+// Define a helper function to get weather icon based on weather condition
+const getWeatherIcon = (condition) => {
+  const lowerCaseCondition = condition.toLowerCase();
+  if (lowerCaseCondition.includes('sunny') || lowerCaseCondition.includes('clear')) return '☀️';
+  if (lowerCaseCondition.includes('cloudy') || lowerCaseCondition.includes('overcast')) return '☁️';
+  if (lowerCaseCondition.includes('rain') || lowerCaseCondition.includes('shower') || lowerCaseCondition.includes('storm')) return '🌧️';
+  return '❓'; // Default unknown weather
 };
 
 // Define the initial calendar data for June 2025 with accurate dates
-// and VERIFIED HISTORICAL WEATHER DATA FOR JUNE 2024 (Vancouver, WA 98683)
-// June 1, 2025 is a Sunday. The data starts directly with June 1.
+// and VERIFIED HISTORICAL WEATHER DATA FOR JUNE 2024 (Portland, OR vicinity)
 const initialCalendarData = [
-  // June 2024 Historical Weather Data for Vancouver, WA (98683 vicinity)
-  // Source: AccuWeather historical data for June 2024
-  { date: 1, day: 'Sun', weather: { high: 73, icon: getWeatherIcon(73) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 2, day: 'Mon', weather: { high: 62, icon: getWeatherIcon(62) }, promos: [
+  // June 2024 Historical Weather Data for Portland, OR (from AccuWeather)
+  { date: 1, day: 'Sun', weather: { high: 73, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 2, day: 'Mon', weather: { high: 62, condition: 'Showers', icon: getWeatherIcon('Showers') }, promos: [
     { id: 'promo1', type: 'general', text: 'Start of Cheddar Pizza' },
     { id: 'promo2', type: 'general', text: 'Shaq-a-Roni becomes permanent menu item', detail: '$16.99 SHAQ / $18.99 w/ 2L' }
   ], specialDay: 'special-day', weekLabel: 'P6 Wk3', holiday: null },
-  { date: 3, day: 'Tue', weather: { high: 63, icon: getWeatherIcon(63) }, promos: [
+  { date: 3, day: 'Tue', weather: { high: 63, condition: 'Cloudy', icon: getWeatherIcon('Cloudy') }, promos: [
     { id: 'promo3', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
-  { date: 4, day: 'Wed', weather: { high: 68, icon: getWeatherIcon(68) }, promos: [
+  { date: 4, day: 'Wed', weather: { high: 68, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo4', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
   ], holiday: null, weekLabel: ''},
-  { date: 5, day: 'Thu', weather: { high: 75, icon: getWeatherIcon(75) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 6, day: 'Fri', weather: { high: 81, icon: getWeatherIcon(81) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 7, day: 'Sat', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 8, day: 'Sun', weather: { high: 83, icon: getWeatherIcon(83) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 9, day: 'Mon', weather: { high: 76, icon: getWeatherIcon(76) }, promos: [], weekLabel: 'P6 Wk4', holiday: null },
-  { date: 10, day: 'Tue', weather: { high: 79, icon: getWeatherIcon(79) }, promos: [
+  { date: 5, day: 'Thu', weather: { high: 75, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 6, day: 'Fri', weather: { high: 81, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 7, day: 'Sat', weather: { high: 86, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 8, day: 'Sun', weather: { high: 83, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 9, day: 'Mon', weather: { high: 76, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], weekLabel: 'P6 Wk4', holiday: null },
+  { date: 10, day: 'Tue', weather: { high: 79, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
     { id: 'promo5', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
-  { date: 11, day: 'Wed', weather: { high: 74, icon: getWeatherIcon(74) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 12, day: 'Thu', weather: { high: 73, icon: getWeatherIcon(73) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 13, day: 'Fri', weather: { high: 75, icon: getWeatherIcon(75) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 14, day: 'Sat', weather: { high: 69, icon: getWeatherIcon(69) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 15, day: 'Sun', weather: { high: 64, icon: getWeatherIcon(64) }, promos: [], specialDay: '', specialText: "Father's Day", holiday: { id: 'holiday1', title: "Father's Day", notes: "Celebrate Dads!", highlight: true }, weekLabel: '' },
-  { date: 16, day: 'Mon', weather: { high: 65, icon: getWeatherIcon(65) }, promos: [], weekLabel: 'P7 Wk1', holiday: null },
-  { date: 17, day: 'Tue', weather: { high: 66, icon: getWeatherIcon(66) }, promos: [
+  { date: 11, day: 'Wed', weather: { high: 74, condition: 'Mostly Cloudy', icon: getWeatherIcon('Mostly Cloudy') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 12, day: 'Thu', weather: { high: 73, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 13, day: 'Fri', weather: { high: 75, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 14, day: 'Sat', weather: { high: 69, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 15, day: 'Sun', weather: { high: 64, condition: 'Rain', icon: getWeatherIcon('Rain') }, promos: [], specialDay: '', specialText: "Father's Day", holiday: { id: 'holiday1', title: "Father's Day", notes: "Celebrate Dads!", highlight: true }, weekLabel: '' },
+  { date: 16, day: 'Mon', weather: { high: 65, condition: 'Cloudy', icon: getWeatherIcon('Cloudy') }, promos: [], weekLabel: 'P7 Wk1', holiday: null },
+  { date: 17, day: 'Tue', weather: { high: 66, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo6', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
-  { date: 18, day: 'Wed', weather: { high: 73, icon: getWeatherIcon(73) }, promos: [
+  { date: 18, day: 'Wed', weather: { high: 73, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo7', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
   ], holiday: null, weekLabel: ''},
-  { date: 19, day: 'Thu', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "Freedom Day", highlight: true }, weekLabel: '' },
-  { date: 20, day: 'Fri', weather: { high: 90, icon: getWeatherIcon(90) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 21, day: 'Sat', weather: { high: 91, icon: getWeatherIcon(91) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 22, day: 'Sun', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 23, day: 'Mon', weather: { high: 71, icon: getWeatherIcon(71) }, promos: [], weekLabel: 'P7 Wk2', holiday: null },
-  { date: 24, day: 'Tue', weather: { high: 76, icon: getWeatherIcon(76) }, promos: [
+  { date: 19, day: 'Thu', weather: { high: 86, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "Freedom Day", highlight: true }, weekLabel: '' },
+  { date: 20, day: 'Fri', weather: { high: 90, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 21, day: 'Sat', weather: { high: 91, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 22, day: 'Sun', weather: { high: 86, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 23, day: 'Mon', weather: { high: 71, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], weekLabel: 'P7 Wk2', holiday: null },
+  { date: 24, day: 'Tue', weather: { high: 76, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
     { id: 'promo8', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
-  { date: 25, day: 'Wed', weather: { high: 88, icon: getWeatherIcon(88) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 26, day: 'Thu', weather: { high: 71, icon: getWeatherIcon(71) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 27, day: 'Fri', weather: { high: 69, icon: getWeatherIcon(69) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 28, day: 'Sat', weather: { high: 80, icon: getWeatherIcon(80) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 29, day: 'Sun', weather: { high: 82, icon: getWeatherIcon(82) }, promos: [], holiday: null, weekLabel: '' },
-  { date: 30, day: 'Mon', weather: { high: 80, icon: getWeatherIcon(80) }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
+  { date: 25, day: 'Wed', weather: { high: 88, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 26, day: 'Thu', weather: { high: 71, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 27, day: 'Fri', weather: { high: 69, condition: 'Showers', icon: getWeatherIcon('Showers') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 28, day: 'Sat', weather: { high: 80, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 29, day: 'Sun', weather: { high: 82, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
+  { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
+  // Adding July days and Monthly Offer Block
+  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025
+  { date: 2, day: 'Wed', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
+    { id: 'monthly-offer', type: 'monthly-offer', text: 'Monthly Digital Offer', detail: 'Cheddar Pizza & Papa\'s Pairings for $6.99' }
+  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Offer
   // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
   // { date: 31, day: 'Tue', weather: { high: 75, icon: getWeatherIcon(75) }, promos: [], holiday: null, weekLabel: '' },
 ];
@@ -103,7 +108,7 @@ const App = () => {
   // Firebase states
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  const [userId, setUserId] = useState(null); // Still need userId for Firestore path (if not shared)
+  const [userId, setUserId] = useState(null); 
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
 
@@ -198,7 +203,7 @@ const App = () => {
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
     if (db && userId && isAuthReady) {
-      // Use the SHARED path for calendar data
+      // Use the SHARED path for calendar data - REMOVED /users/{userId}/
       const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
       
       const unsubscribe = onSnapshot(calendarDocRef, (docSnap) => {
@@ -232,8 +237,8 @@ const App = () => {
 
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
-    if (db && userId) {
-      // Use the SHARED path for calendar data
+    if (db && userId) { // userId is still needed to ensure an auth'd state for rule `request.auth != null`
+      // Use the SHARED path for calendar data - REMOVED /users/{userId}/
       try {
         const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
@@ -674,7 +679,7 @@ const App = () => {
             +
           </button>
           {/* New: Add Holiday Button */}
-          <button className="add-button" onClick={openAddHolidayModal} title="Add Holiday">
+          <button className className="add-button" onClick={openAddHolidayModal} title="Add Holiday">
             🎁
           </button>
           {/* New: Print Button */}
@@ -800,11 +805,11 @@ const App = () => {
                         
                         {dayData.promos.map((promo, promoIndex) => (
                           <div className="card" key={promoIndex}>
-                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : ''}`}>
+                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
                               {promo.text}
                             </div>
                             {promo.detail && (
-                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : ''}`}>
+                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
                                 {promo.detail}
                               </span>
                             )}
@@ -1141,16 +1146,6 @@ const App = () => {
         h1:hover .title-edit-icon {
             opacity: 1;
         }
-        .title-edit-icon {
-            position: absolute;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            font-size: 0.7em;
-            color: rgba(0,0,0,0.5);
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
         .title-edit-container {
             width: 100%;
             display: flex;
@@ -1181,7 +1176,7 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
         }
         .title-edit-save-btn:hover {
-            background-color: #a00d27;
+            background-color: #005a30;
         }
 
 
@@ -1274,7 +1269,7 @@ const App = () => {
           border: 1px solid #ebebeb;
           background-color: #fdfdfd;
           vertical-align: top;
-          min-height: 160px; /* Changed to min-height */
+          min-height: 120px; /* Adjusted to min-height */
           padding: 12px;
           transition: background-color 0.2s ease-in-out;
           position: relative; /* Essential for absolute positioning of icons */
@@ -1370,6 +1365,24 @@ const App = () => {
             padding: 6px 10px; /* Slightly smaller padding */
             position: relative; /* For holiday edit/delete icons */
         }
+        /* New style for the monthly offer badge */
+        .badge.monthly-offer {
+            background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%); /* Red gradient */
+            color: #fff;
+            font-size: 1em;
+            font-weight: 700;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            border: 2px solid #a00d27;
+        }
+        .badge.monthly-offer .promo-detail { /* Make detail white for this badge */
+            color: #fff;
+            font-weight: 600;
+        }
+
 
         .card {
           background: #ffffff;
@@ -1421,7 +1434,7 @@ const App = () => {
         .special-fathers-day {
             background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%); /* Lighter, more distinct blue */
             border: 2px solid #4682B4; /* SteelBlue border */
-            color: #333; /* Darker text for contrast */
+            color: #333; /* Darker color for better readability */
         }
         .special-juneteenth {
             background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%); /* Tomato, Gold, SkyBlue */
