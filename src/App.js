@@ -128,7 +128,7 @@ const App = () => {
   // State for the new/edited holiday form
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayTitle, setHolidayTitle] = useState('');
-  const [holidayNotes, setHolidayNotes] = useState(''); // Corrected this line
+  const [holidayNotes, setHolidayNotes] = useState(''); 
   const [holidayHighlight, setHolidayHighlight] = useState(false);
 
   // State for the editable banner
@@ -482,7 +482,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayData) { // BUG: This should be day.date === dayDate
+            if (day.date === dayDate) { 
                 return {
                     ...day,
                     promos: [],
@@ -1141,6 +1141,16 @@ const App = () => {
         h1:hover .title-edit-icon {
             opacity: 1;
         }
+        .title-edit-icon {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            font-size: 0.7em;
+            color: rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
         .title-edit-container {
             width: 100%;
             display: flex;
@@ -1260,23 +1270,14 @@ const App = () => {
           border-collapse: collapse;
           table-layout: fixed;
         }
-        th {
-          border: 1px solid #ebebeb;
-          background-color: #f8f8f8;
-          padding: 12px 8px;
-          text-align: center;
-          font-size: 0.95em;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-        }
         td {
           border: 1px solid #ebebeb;
           background-color: #fdfdfd;
           vertical-align: top;
-          height: 160px; /* Fixed height for consistent row height */
+          min-height: 160px; /* Changed to min-height */
           padding: 12px;
           transition: background-color 0.2s ease-in-out;
+          position: relative; /* Essential for absolute positioning of icons */
         }
         td:hover {
             background-color: #f5f5f5;
@@ -1420,7 +1421,7 @@ const App = () => {
         .special-fathers-day {
             background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%); /* Lighter, more distinct blue */
             border: 2px solid #4682B4; /* SteelBlue border */
-            color: #333; /* Darker color for better readability */
+            color: #333; /* Darker text for contrast */
         }
         .special-juneteenth {
             background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%); /* Tomato, Gold, SkyBlue */
@@ -1481,10 +1482,10 @@ const App = () => {
         }
 
         /* Hover states for icons */
-        .date-weather-group:hover .edit-icon,
-        .date-weather-group:hover .delete-icon,
-        .date-weather-group:hover .holiday-edit-icon,
-        .date-weather-group:hover .holiday-delete-icon,
+        td:hover .date-weather-group .edit-icon,
+        td:hover .date-weather-group .delete-icon,
+        td:hover .date-weather-group .holiday-edit-icon,
+        td:hover .date-weather-group .holiday-delete-icon,
         .card:hover .edit-icon,
         .card:hover .delete-icon,
         .card:hover .generate-promo-star {
