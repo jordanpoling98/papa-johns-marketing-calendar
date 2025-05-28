@@ -1050,7 +1050,7 @@ const App = () => {
                   <label>
                     <input
                       type="radio"
-                      name="eventColor"
+                      name="rmp50"
                       value="rmp50"
                       checked={eventColor === 'rmp50'}
                       onChange={(e) => setEventColor(e.target.value)}
@@ -1820,7 +1820,7 @@ const App = () => {
                 display: block; /* Override flex for print */
                 width: 100%;
                 height: auto;
-                font-size: 9pt; /* Slightly smaller base font size for print */
+                font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
             .modal-overlay { /* Hide modals */
@@ -1830,13 +1830,21 @@ const App = () => {
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
-            .header-icon, /* Graduation cap and sun icons */
             .banner-edit-icon,
             .copy-to-clipboard-btn,
             .title-edit-icon,
             .title-edit-container,
             .title-edit-save-btn {
                 display: none !important; /* Hide all interactive/non-print elements */
+            }
+            /* Ensure the header icons (sun and graduation cap) are visible */
+            .header-icon {
+                display: inline-block !important; /* Make visible */
+                width: 25px !important; /* Adjust size for print */
+                height: 25px !important;
+                margin: 0 5px !important; /* Adjust spacing */
+                vertical-align: middle !important;
+                print-color-adjust: exact;
             }
 
             .logo { 
@@ -1877,9 +1885,10 @@ const App = () => {
                 padding-right: 5px !important;
             }
             h1 {
-                font-size: 1.1em; /* Smaller font size for print */
-                margin-bottom: 0.05em; /* Reduced margin */
-                color: #000;
+                font-size: 1.4em !important; /* Increased font size for title */
+                font-weight: 900 !important; /* Make bolder */
+                margin-bottom: 0.05em !important; /* Reduced margin */
+                color: #000 !important;
                 text-shadow: none;
                 cursor: default;
                 print-color-adjust: exact;
@@ -1894,7 +1903,8 @@ const App = () => {
                 background-color: #c0c0c0; /* Slightly darker grey for banner in print */
                 color: #000;
                 border-bottom: 1px solid #888;
-                font-size: 0.8em; /* Smaller font for banner */
+                font-size: 0.9em !important; /* Slightly larger font for banner */
+                font-weight: 700 !important; /* Make bolder */
                 print-color-adjust: exact;
             }
             /* Digital Offers Box for Print */
@@ -1910,14 +1920,15 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .digital-offers-title {
-                font-size: 0.8em !important; /* Smaller font for print */
+                font-size: 0.9em !important; /* Smaller font for print */
+                font-weight: 800 !important; /* Make bolder */
                 margin-bottom: 2px !important;
                 color: #c8102e !important;
                 text-transform: uppercase !important;
                 print-color-adjust: exact;
             }
             .digital-offers-text {
-                font-size: 0.65em !important; /* Smaller font for print */
+                font-size: 0.75em !important; /* Slightly larger font for print */
                 line-height: 1.2 !important;
                 color: #333 !important;
                 print-color-adjust: exact;
@@ -1933,7 +1944,7 @@ const App = () => {
                 background-color: #f8f8f8;
                 border: 1px solid #888;
                 padding: 4px 2px; /* Reduced padding */
-                font-size: 0.75em; /* Smaller font */
+                font-size: 0.85em !important; /* Larger font */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
@@ -1942,7 +1953,7 @@ const App = () => {
             td {
                 border: 1px solid #888;
                 height: auto; /* Allow height to adapt */
-                min-height: 50px; /* Further reduced min height for cells */
+                min-height: 55px; /* Adjusted min height for cells */
                 padding: 3px; /* Reduced padding */
                 display: table-cell;
                 vertical-align: top;
