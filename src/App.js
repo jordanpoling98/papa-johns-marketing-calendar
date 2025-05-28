@@ -145,12 +145,11 @@ const App = () => {
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
   // Gemini API Key
-  const GEMINI_API_KEY = "AIzaSyAa7Fkbw1GRZD2DTCgvq-lHWFYKnX1GNzE";
+  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 
-  // Global variables for Firebase config and app ID (as per instructions)
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+  // Firebase config for local development (reads from .env.local)
+  const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) : {};
+  const appId = process.env.REACT_APP_APP_ID || 'default-app-id';
 
 
   // Initialize Firebase and set up authentication
@@ -185,7 +184,7 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, []); // Run only once on component mount
+  }, [firebaseConfig]); // Re-run if config changes (though it shouldn't dynamically)
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
@@ -265,7 +264,7 @@ const App = () => {
     if (day) {
       const promo = day.promos.find(p => p.id === promoId);
       if (promo) {
-        setEventDate(dayDate); // Corrected this line to use dayDate directly
+        setEventDate(dayDate); 
         setEventTitle(promo.text);
         setEventPromoCode(promo.detail || '');
         setEventColor(promo.type);
@@ -293,7 +292,7 @@ const App = () => {
   const openEditDayModal = (dayDate) => {
     const day = calendar.find(d => d.date === dayDate);
     if (day) {
-      setEditDayDate(day.date); // Corrected from dayData.date to day.date
+      setEditDayDate(day.date); 
       setEditDayWeatherHigh(day.weather.high);
       setEditDayWeekLabel(day.weekLabel || '');
       setSelectedDayData(day); // Store the entire day object for context
@@ -1131,16 +1130,6 @@ const App = () => {
         h1:hover .title-edit-icon {
             opacity: 1;
         }
-        .title-edit-icon {
-            position: absolute;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            font-size: 0.7em;
-            color: rgba(0,0,0,0.5);
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
         .title-edit-container {
             width: 100%;
             display: flex;
@@ -1171,7 +1160,7 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
         }
         .title-edit-save-btn:hover {
-            background-color: #005a30;
+            background-color: #a00d27;
         }
 
 
@@ -1382,7 +1371,7 @@ const App = () => {
           position: relative; /* Needed for absolute positioning of star */
         }
         .card:first-of-type {
-            margin-top: 0; /* No top margin for the first card in a cell */
+            margin-top: 0; /* No top top-margin for the first card in a cell */
         }
         /* Ensure spacing between multiple cards in a cell */
         .cell-content .card + .card {
@@ -1420,7 +1409,7 @@ const App = () => {
         .special-fathers-day {
             background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%); /* Lighter, more distinct blue */
             border: 2px solid #4682B4; /* SteelBlue border */
-            color: #333; /* Darker text for contrast */
+            color: #333; /* Darker color for better readability */
         }
         .special-juneteenth {
             background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%); /* Tomato, Gold, SkyBlue */
@@ -1470,167 +1459,25 @@ const App = () => {
             height: 40px;
         }
 
-        /* New styles for the hidden star emoji button */
-        .generate-promo-star {
-          position: absolute;
-          top: 4px;
-          right: 6px;
-          font-size: 1.1em;
-          cursor: pointer;
+        /* Corrected styles for icons within cells */
+        .date-weather-group .edit-icon,
+        .date-weather-group .delete-icon,
+        .card .edit-icon,
+        .card .delete-icon,
+        .card .generate-promo-star {
           opacity: 0; /* Hidden by default */
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
-          line-height: 1;
-          padding: 3px;
-          border-radius: 50%;
-          background-color: transparent;
-        }
-        /* Apply opacity 1 on hover of the card */
-        .card:hover .generate-promo-star {
-          opacity: 1;
-        }
-        .generate-promo-star:hover {
-          transform: scale(1.1);
-          background-color: rgba(255, 255, 255, 0.7);
-        }
-        .generate-promo-star:active {
-          transform: scale(0.95);
         }
 
-        /* New week-label-bubble style */
-        .week-label-bubble {
-            background-color: #e8f0f8;
-            color: #555;
-            font-size: 0.65em;
-            font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 12px;
-            margin-top: auto;
-            align-self: flex-end;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #d0dbe8;
-        }
-
-        /* Modal styles */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.6);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-        .modal-overlay.visible {
-          opacity: 1;
-          visibility: visible;
-        }
-
-        .modal-content {
-          background-color: #fff;
-          padding: 25px;
-          border-radius: 10px;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-          width: 90%;
-          max-width: 500px;
-          transform: translateY(-20px);
-          transition: transform 0.3s ease-in-out;
-          position: relative;
-        }
-        .modal-overlay.visible .modal-content {
-          transform: translateY(0);
-        }
-
-        .modal-close-btn {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: none;
-          border: none;
-          font-size: 1.5em;
-          cursor: pointer;
-          color: #888;
-          transition: color 0.2s;
-        }
-        .modal-close-btn:hover {
-          color: #333;
-        }
-
-        .modal-title {
-          font-family: 'Montserrat', sans-serif;
-          font-weight: 700;
-          font-size: 1.3em;
-          color: #c8102e;
-          margin-bottom: 15px;
-          text-align: center;
-        }
-
-        .promo-copy-output {
-          background-color: #f8f8f8;
-          border: 1px solid #eee;
-          padding: 15px;
-          border-radius: 8px;
-          min-height: 80px;
-          font-size: 0.9em;
-          line-height: 1.5;
-          color: #444;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-
-        .loading-indicator {
-          text-align: center;
-          padding: 20px;
-          font-style: italic;
-          color: #777;
-        }
-        .loading-indicator::after {
-          content: '...';
-          animation: loading-dots 1s infinite;
-        }
-        @keyframes loading-dots {
-          0%, 20% { content: '.'; }
-          40% { content: '..'; }
-          60%, 100% { content: '...'; }
-        }
-
-        /* Edit/Delete Icons */
-        .edit-icon, .delete-icon {
-            position: absolute;
-            font-size: 0.9em; /* Smaller icons */
-            cursor: pointer;
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
-            line-height: 1;
-            padding: 3px;
-            border-radius: 50%;
-            background-color: transparent;
-        }
-        /* Ensure these icons are hidden by default */
-        /* These specific rules ensure they are hidden */
-        .cell-content .edit-icon,
-        .cell-content .delete-icon,
-        .cell-content .generate-promo-star {
-            opacity: 0;
-        }
-
-
-        /* Hover states for icons within cards and date-weather-group */
+        /* Hover states for icons */
+        .date-weather-group:hover .edit-icon,
+        .date-weather-group:hover .delete-icon,
+        .date-weather-group:hover .holiday-edit-icon,
+        .date-weather-group:hover .holiday-delete-icon,
         .card:hover .edit-icon,
         .card:hover .delete-icon,
-        .card:hover .generate-promo-star { /* Apply to generate-promo-star too */
-            opacity: 1; /* Fully visible on card hover */
-        }
-        .date-weather-group:hover .day-edit-icon,
-        .date-weather-group:hover .day-delete-icon,
-        .date-weather-group:hover .holiday-edit-icon,
-        .date-weather-group:hover .holiday-delete-icon {
-            opacity: 1; /* Fully visible on date-weather-group hover */
+        .card:hover .generate-promo-star {
+            opacity: 1; /* Fully visible on hover */
         }
         /* Individual icon hover for slight scale/background change */
         .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover {
@@ -1640,37 +1487,50 @@ const App = () => {
         .edit-icon:active, .delete-icon:active, .generate-promo-star:active {
             transform: scale(0.95);
         }
-
-        /* Promo card icons */
+        
+        /* Positioning of icons within cells */
         .card .edit-icon {
-            top: 4px; /* Align with star */
-            right: 28px; /* Position next to star */
-            color: #007bff; /* Blue for edit */
+            top: 4px; 
+            right: 28px;
+            color: #007bff;
         }
         .card .delete-icon {
-            top: 4px; /* Align with star */
-            right: 50px; /* Position next to edit */
-            color: #dc3545; /* Red for delete */
+            top: 4px; 
+            right: 50px;
+            color: #dc3545;
         }
-        /* Day edit/delete icons (positioned relative to date-weather-group) */
+        .generate-promo-star { /* Keep original position */
+          position: absolute;
+          top: 4px;
+          right: 6px;
+          font-size: 1.1em;
+          cursor: pointer;
+          line-height: 1;
+          padding: 3px;
+          border-radius: 50%;
+          background-color: transparent;
+        }
         .day-edit-icon {
-            top: 0px; /* Aligned with top of date-weather-group */
-            right: 24px; /* Space from right */
+            position: absolute; /* Ensure these are also absolutely positioned */
+            top: 0px; 
+            right: 24px;
             color: #007bff;
         }
         .day-delete-icon {
-            top: 0px; /* Aligned with top of date-weather-group */
-            right: 2px; /* Close to the right edge */
+            position: absolute;
+            top: 0px; 
+            right: 2px;
             color: #dc3545;
         }
-        /* Holiday icons (positioned relative to date-weather-group) */
         .holiday-edit-icon {
-            top: 24px; /* Positioned below date/weather */
+            position: absolute;
+            top: 24px; 
             right: 24px;
             color: #007bff;
         }
         .holiday-delete-icon {
-            top: 24px; /* Positioned below date/weather */
+            position: absolute;
+            top: 24px; 
             right: 2px;
             color: #dc3545;
         }
@@ -2032,11 +1892,6 @@ const App = () => {
             .submit-event-btn {
                 padding: 10px 15px;
                 font-size: 0.9em;
-            }
-            .edit-icon, .delete-icon {
-                top: 1px;
-                font-size: 0.8em;
-                padding: 2px;
             }
             .edit-icon {
                 right: 20px;
