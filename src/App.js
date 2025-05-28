@@ -71,6 +71,9 @@ const initialCalendarData = [
   // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
 
+// Define initial text for digital offers
+const initialDigitalOffersText = 'Cheddar Pizza & Papa\'s Pairings for $6.99';
+
 // Custom Alert Modal Component
 const AlertModal = ({ message, onClose }) => {
   return (
@@ -145,7 +148,7 @@ const App = () => {
   const [isTitleEditing, setIsTitleEditing] = useState(false);
 
   // New state for editable digital offers text
-  const [digitalOffersText, setDigitalOffersText] = useState('Cheddar Pizza & Papa\'s Pairings for $6.99');
+  const [digitalOffersText, setDigitalOffersText] = useState(initialDigitalOffersText);
   const [isDigitalOffersEditing, setIsDigitalOffersEditing] = useState(false);
 
 
