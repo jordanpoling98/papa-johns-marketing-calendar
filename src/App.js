@@ -1151,22 +1151,18 @@ const App = () => {
             display: flex;
             gap: 10px;
             align-items: center;
-            margin-bottom: 0.5em;
         }
         .title-edit-input {
             flex-grow: 1;
             padding: 10px 15px;
             border: 1px solid #ddd;
             border-radius: 8px;
-            font-size: 2.2em; /* Match h1 size */
+            font-size: 1.1em;
             font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            color: #c8102e;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: 600;
         }
         .title-edit-save-btn {
-            background-color: #006c3b;
+            background-color: #c8102e;
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -1203,6 +1199,16 @@ const App = () => {
           width: 100%;
           border-collapse: collapse;
           table-layout: fixed;
+        }
+        th {
+          border: 1px solid #ebebeb;
+          background-color: #f8f8f8;
+          padding: 12px 8px;
+          text-align: center;
+          font-size: 0.95em;
+          font-weight: 600;
+          color: #666;
+          text-transform: uppercase;
         }
         td {
           border: 1px solid #ebebeb;
@@ -1638,10 +1644,7 @@ const App = () => {
                 font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
-            .modal-overlay { /* Hide modals */
-                display: none !important;
-            }
-            /* Explicitly hide all icons that should not be in print */
+            .modal-overlay,
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -1651,7 +1654,7 @@ const App = () => {
             .title-edit-icon,
             .title-edit-container,
             .title-edit-save-btn {
-                display: none !important;
+                display: none !important; /* Hide all interactive/non-print elements */
             }
 
             .logo { 
@@ -1665,7 +1668,7 @@ const App = () => {
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
-                filter: grayscale(50%);
+                filter: grayscale(50%); /* Slightly desaturate for ink saving */
             }
 
             .calendar-container {
@@ -1676,13 +1679,15 @@ const App = () => {
                 border-radius: 0;
                 overflow: visible;
                 background: #fff; /* White background for print */
+                print-color-adjust: exact; /* Force color printing for container */
             }
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 1px solid #888;
                 padding: 0.4rem 0;
                 border-radius: 0;
-                background-color: #f0f0f0;
+                background-color: #f0f0f0; /* Light grey background for header */
+                print-color-adjust: exact;
             }
             h1 {
                 font-size: 1.3em;
@@ -1690,16 +1695,18 @@ const App = () => {
                 color: #000;
                 text-shadow: none;
                 cursor: default;
+                print-color-adjust: exact;
             }
             .banner {
                 box-shadow: none;
                 border-radius: 0;
                 padding: 6px 8px;
                 margin-bottom: 8px;
-                background-color: #c0c0c0;
+                background-color: #c0c0c0; /* Slightly darker grey for banner in print */
                 color: #000;
                 border-bottom: 1px solid #888;
                 font-size: 0.9em;
+                print-color-adjust: exact;
             }
             table {
                 width: 100%;
@@ -1713,23 +1720,24 @@ const App = () => {
                 font-size: 0.8em;
                 color: #000;
                 font-weight: 700;
+                print-color-adjust: exact;
             }
             td {
                 border: 1px solid #888;
-                height: auto;
+                height: auto; /* Allow height to adapt */
                 min-height: 60px; /* Reduced min height for cells */
                 padding: 4px;
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid; /* Prevents cell content from splitting */
-                background-color: #fff !important; /* Force white background for print cells */
+                background-color: #fdfdfd !important; /* Force light background for print cells */
                 print-color-adjust: exact; /* Force color printing */
             }
-            /* Specific badge backgrounds for print */
-            .badge.two-dollar { background-color: #ffe8eb !important; print-color-adjust: exact; }
-            .badge.rmp50 { background-color: #e8f5e8 !important; print-color-adjust: exact; }
-            .badge.special-text-badge { background-color: #c0c0c0 !important; color: #000 !important; border-color: #888 !important; print-color-adjust: exact; }
-            .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%); color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
+            /* Specific badge backgrounds for print - force their original colors */
+            .badge.two-dollar { background-color: #ffe8eb !important; color: #c8102e !important; print-color-adjust: exact; }
+            .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
+            .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
+            .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
 
 
             .cell-content {
@@ -1742,7 +1750,7 @@ const App = () => {
             }
             .date-weather-group {
                 display: flex;
-                flex-direction: column;
+                flex-direction: column; /* Stack date and weather vertically */
                 align-items: flex-start;
                 gap: 2px;
                 margin-bottom: 4px;
@@ -1768,10 +1776,12 @@ const App = () => {
                 font-size: 1em;
                 color: #000;
                 font-weight: 700;
+                print-color-adjust: exact;
             }
             .weather {
                 font-size: 0.65em;
                 color: #555;
+                print-color-adjust: exact;
             }
             .badge {
                 padding: 3px 5px;
@@ -1781,6 +1791,7 @@ const App = () => {
                 /* Background and color adjustments handled above */
                 page-break-inside: avoid;
                 margin-bottom: 2px;
+                print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
@@ -1795,6 +1806,7 @@ const App = () => {
                 font-size: 0.55em;
                 margin-top: 2px;
                 color: #666;
+                print-color-adjust: exact;
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
