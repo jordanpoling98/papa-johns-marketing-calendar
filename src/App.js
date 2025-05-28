@@ -447,7 +447,7 @@ const App = () => {
     e.preventDefault();
     const dateNum = parseInt(holidayDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum > 31 || !holidayTitle.trim()) { // Max 31 days
+    if (isNaN(dateNum) || dateNum < 1 || dateNum < 1 || dateNum > 31 || !holidayTitle.trim()) { // Max 31 days
       showAlert('Please enter a valid date (1-31) and holiday title.');
       return;
     }
@@ -1854,7 +1854,7 @@ const App = () => {
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 15px !important; /* Smaller logo for print */
+                height: 15px !important; 
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
