@@ -68,7 +68,7 @@ const initialCalendarData = [
     { id: 'monthly-offer', type: 'monthly-offer', text: 'Monthly Digital Offer', detail: 'Cheddar Pizza & Papa\'s Pairings for $6.99' }
   ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Offer
   // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
-  // { date: 31, day: 'Tue', weather: { high: 75, icon: getWeatherIcon(75) }, promos: [], holiday: null, weekLabel: '' },
+  // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
 
 // Custom Alert Modal Component
@@ -679,7 +679,7 @@ const App = () => {
             +
           </button>
           {/* New: Add Holiday Button */}
-          <button className className="add-button" onClick={openAddHolidayModal} title="Add Holiday">
+          <button className="add-button" onClick={openAddHolidayModal} title="Add Holiday">
             🎁
           </button>
           {/* New: Print Button */}
