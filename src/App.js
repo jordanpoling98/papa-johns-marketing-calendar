@@ -1795,7 +1795,10 @@ const App = () => {
                 font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
-            .modal-overlay,
+            .modal-overlay { /* Hide modals */
+                display: none !important;
+            }
+            /* Explicitly hide all icons that should not be in print */
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -1804,13 +1807,33 @@ const App = () => {
             .copy-to-clipboard-btn,
             .title-edit-icon,
             .title-edit-container,
-            .title-edit-save-btn,
-            .digital-offers-box, /* Hide digital offers box from print */
-            .digital-offers-edit-icon,
-            .digital-offers-edit-container,
-            .digital-offers-save-btn {
+            .title-edit-save-btn {
                 display: none !important; /* Hide all interactive/non-print elements */
             }
+            /* Ensure the digital offers box is VISIBLE in print */
+            .digital-offers-box {
+                display: block !important; /* Make it visible */
+                flex-shrink: 1 !important; /* Allow shrinking if needed */
+                min-width: unset !important; /* Remove min-width constraint */
+                max-width: unset !important; /* Remove max-width constraint */
+                margin-left: 0 !important; /* Remove left margin */
+                padding: 8px 12px !important; /* Adjust padding for print */
+                box-shadow: none !important; /* Remove shadow for print */
+                border: 1px solid #888 !important; /* Add a visible border */
+                print-color-adjust: exact; /* Force color printing */
+            }
+            .digital-offers-title {
+                font-size: 0.9em !important; /* Smaller font for print */
+                margin-bottom: 4px !important;
+                color: #c8102e !important; /* Ensure color prints */
+                print-color-adjust: exact;
+            }
+            .digital-offers-text {
+                font-size: 0.7em !important; /* Smaller font for print */
+                color: #333 !important; /* Ensure color prints */
+                print-color-adjust: exact;
+            }
+
 
             .logo { 
                 display: block !important;
@@ -1843,6 +1866,11 @@ const App = () => {
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
                 print-color-adjust: exact;
+                flex-wrap: nowrap !important; /* Prevent wrapping in header for print */
+                justify-content: space-between !important; /* Distribute items */
+                align-items: center !important;
+                padding-left: 10px !important; /* Add some padding */
+                padding-right: 10px !important;
             }
             h1 {
                 font-size: 1.3em;
@@ -1851,6 +1879,8 @@ const App = () => {
                 text-shadow: none;
                 cursor: default;
                 print-color-adjust: exact;
+                flex-grow: 1; /* Allow title to take available space */
+                text-align: center; /* Center the title */
             }
             .banner {
                 box-shadow: none;
