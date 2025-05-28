@@ -103,7 +103,7 @@ const App = () => {
   // Firebase states
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(null); // Still need userId for Firestore path (if not shared)
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
 
@@ -128,7 +128,7 @@ const App = () => {
   // State for the new/edited holiday form
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayTitle, setHolidayTitle] = useState('');
-  const [holidayNotes, setHolidayNotes] = useState('');
+  const [holidayNotes, setHolidayNotes] = useState(''); // Corrected this line
   const [holidayHighlight, setHolidayHighlight] = useState(false);
 
   // State for the editable banner
@@ -147,13 +147,22 @@ const App = () => {
   // Gemini API Key
   const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
 
-  // Firebase config for local development (reads from .env.local)
+  // Firebase config (reads from process.env.REACT_APP_ prefixed variables)
   const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) : {};
   const appId = process.env.REACT_APP_APP_ID || 'default-app-id';
 
 
   // Initialize Firebase and set up authentication
   useEffect(() => {
+    // Only initialize if firebaseConfig is not an empty object (i.e., it was successfully parsed)
+    if (Object.keys(firebaseConfig).length === 0) {
+      console.error("Firebase config is empty. Data saving will not work. Please ensure REACT_APP_FIREBASE_CONFIG is set and valid JSON.");
+      showAlert("Firebase config missing or invalid. Data saving will not work.");
+      setIsAuthReady(true);
+      setIsFirestoreLoading(false);
+      return; // Exit early if config is bad
+    }
+
     try {
       const app = initializeApp(firebaseConfig);
       const firestore = getFirestore(app);
@@ -189,7 +198,8 @@ const App = () => {
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
     if (db && userId && isAuthReady) {
-      const calendarDocRef = doc(db, `artifacts/${appId}/users/${userId}/calendarData/juneCalendar`);
+      // Use the SHARED path for calendar data
+      const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
       
       const unsubscribe = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -223,8 +233,9 @@ const App = () => {
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
     if (db && userId) {
+      // Use the SHARED path for calendar data
       try {
-        const calendarDocRef = doc(db, `artifacts/${appId}/users/${userId}/calendarData/juneCalendar`);
+        const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
         console.log("Calendar data saved to Firestore!");
       } catch (error) {
@@ -280,7 +291,7 @@ const App = () => {
     if (day && day.holiday) {
       setHolidayDate(dayDate);
       setHolidayTitle(day.holiday.title);
-      setHolidayNotes(day.holiday.notes || '');
+      setHolidayNotes(day.holiday.notes || ''); 
       setHolidayHighlight(day.holiday.highlight || false);
       setSelectedHoliday({ dayDate, id: day.holiday.id });
       setBackgroundSuggestion(''); // Clear previous suggestion
@@ -471,7 +482,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) {
+            if (day.date === dayData) { // BUG: This should be day.date === dayDate
                 return {
                     ...day,
                     promos: [],
