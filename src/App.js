@@ -1176,66 +1176,6 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
         }
         .title-edit-save-btn:hover {
-            background-color: #005a30;
-        }
-
-
-        .banner {
-          font-weight: 600;
-          background-color: #006c3b;
-          color: #fff;
-          padding: 15px 20px;
-          margin-bottom: 20px;
-          border-radius: 8px;
-          text-align: center;
-          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-          position: relative; /* For edit icon */
-          cursor: pointer; /* Indicate it's clickable */
-          transition: background-color 0.3s ease;
-        }
-        .banner:hover {
-            background-color: #005a30; /* Slightly darker on hover */
-        }
-        .banner-edit-icon {
-            position: absolute;
-            top: 50%;
-            right: 15px;
-            transform: translateY(-50%);
-            font-size: 0.9em;
-            color: rgba(255,255,255,0.7);
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.2s ease-in-out;
-        }
-        .banner:hover .banner-edit-icon {
-            opacity: 1; /* Visible on hover */
-        }
-        .banner-edit-container {
-            width: 100%;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 0.5em;
-        }
-        .banner-edit-input {
-            flex-grow: 1;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 600;
-        }
-        .banner-edit-save-btn {
-            background-color: #c8102e;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 0.9em;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .banner-edit-save-btn:hover {
             background-color: #a00d27;
         }
         
@@ -1433,7 +1373,7 @@ const App = () => {
         .special-fathers-day {
             background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%); /* Lighter, more distinct blue */
             border: 2px solid #4682B4; /* SteelBlue border */
-            color: #333; /* Darker color for better readability */
+            color: #333; /* Darker text for better readability */
         }
         .special-juneteenth {
             background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%); /* Tomato, Gold, SkyBlue */
