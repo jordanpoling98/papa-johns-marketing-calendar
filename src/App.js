@@ -265,7 +265,7 @@ const App = () => {
     if (day) {
       const promo = day.promos.find(p => p.id === promoId);
       if (promo) {
-        setEventDate(dayData.date); // Use dayData.date directly
+        setEventDate(dayDate); // Corrected this line to use dayDate directly
         setEventTitle(promo.text);
         setEventPromoCode(promo.detail || '');
         setEventColor(promo.type);
@@ -655,12 +655,7 @@ const App = () => {
         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Papa_Johns_logo.svg/2560px-Papa_Johns_logo.svg.png" alt="Papa John's Logo" />
       </div>
       
-      {/* Display User ID */}
-      {userId && (
-        <div className="user-id-display">
-          User ID: {userId}
-        </div>
-      )}
+      {/* Removed User ID display */}
 
       {/* New: Add Event Controls */}
       <div className="add-event-controls">
@@ -1489,14 +1484,197 @@ const App = () => {
           border-radius: 50%;
           background-color: transparent;
         }
-        .generate-promo-star:hover {
+        /* Apply opacity 1 on hover of the card */
+        .card:hover .generate-promo-star {
           opacity: 1;
+        }
+        .generate-promo-star:hover {
           transform: scale(1.1);
           background-color: rgba(255, 255, 255, 0.7);
         }
         .generate-promo-star:active {
           transform: scale(0.95);
         }
+
+        /* New week-label-bubble style */
+        .week-label-bubble {
+            background-color: #e8f0f8;
+            color: #555;
+            font-size: 0.65em;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-top: auto;
+            align-self: flex-end;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #d0dbe8;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.visible {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .modal-content {
+          background-color: #fff;
+          padding: 25px;
+          border-radius: 10px;
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+          width: 90%;
+          max-width: 500px;
+          transform: translateY(-20px);
+          transition: transform 0.3s ease-in-out;
+          position: relative;
+        }
+        .modal-overlay.visible .modal-content {
+          transform: translateY(0);
+        }
+
+        .modal-close-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: none;
+          border: none;
+          font-size: 1.5em;
+          cursor: pointer;
+          color: #888;
+          transition: color 0.2s;
+        }
+        .modal-close-btn:hover {
+          color: #333;
+        }
+
+        .modal-title {
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 700;
+          font-size: 1.3em;
+          color: #c8102e;
+          margin-bottom: 15px;
+          text-align: center;
+        }
+
+        .promo-copy-output {
+          background-color: #f8f8f8;
+          border: 1px solid #eee;
+          padding: 15px;
+          border-radius: 8px;
+          min-height: 80px;
+          font-size: 0.9em;
+          line-height: 1.5;
+          color: #444;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .loading-indicator {
+          text-align: center;
+          padding: 20px;
+          font-style: italic;
+          color: #777;
+        }
+        .loading-indicator::after {
+          content: '...';
+          animation: loading-dots 1s infinite;
+        }
+        @keyframes loading-dots {
+          0%, 20% { content: '.'; }
+          40% { content: '..'; }
+          60%, 100% { content: '...'; }
+        }
+
+        /* Edit/Delete Icons */
+        .edit-icon, .delete-icon {
+            position: absolute;
+            font-size: 0.9em; /* Smaller icons */
+            cursor: pointer;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
+            line-height: 1;
+            padding: 3px;
+            border-radius: 50%;
+            background-color: transparent;
+        }
+        /* Ensure these icons are hidden by default */
+        /* These specific rules ensure they are hidden */
+        .cell-content .edit-icon,
+        .cell-content .delete-icon,
+        .cell-content .generate-promo-star {
+            opacity: 0;
+        }
+
+
+        /* Hover states for icons within cards and date-weather-group */
+        .card:hover .edit-icon,
+        .card:hover .delete-icon,
+        .card:hover .generate-promo-star { /* Apply to generate-promo-star too */
+            opacity: 1; /* Fully visible on card hover */
+        }
+        .date-weather-group:hover .day-edit-icon,
+        .date-weather-group:hover .day-delete-icon,
+        .date-weather-group:hover .holiday-edit-icon,
+        .date-weather-group:hover .holiday-delete-icon {
+            opacity: 1; /* Fully visible on date-weather-group hover */
+        }
+        /* Individual icon hover for slight scale/background change */
+        .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover {
+            transform: scale(1.1);
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        .edit-icon:active, .delete-icon:active, .generate-promo-star:active {
+            transform: scale(0.95);
+        }
+
+        /* Promo card icons */
+        .card .edit-icon {
+            top: 4px; /* Align with star */
+            right: 28px; /* Position next to star */
+            color: #007bff; /* Blue for edit */
+        }
+        .card .delete-icon {
+            top: 4px; /* Align with star */
+            right: 50px; /* Position next to edit */
+            color: #dc3545; /* Red for delete */
+        }
+        /* Day edit/delete icons (positioned relative to date-weather-group) */
+        .day-edit-icon {
+            top: 0px; /* Aligned with top of date-weather-group */
+            right: 24px; /* Space from right */
+            color: #007bff;
+        }
+        .day-delete-icon {
+            top: 0px; /* Aligned with top of date-weather-group */
+            right: 2px; /* Close to the right edge */
+            color: #dc3545;
+        }
+        /* Holiday icons (positioned relative to date-weather-group) */
+        .holiday-edit-icon {
+            top: 24px; /* Positioned below date/weather */
+            right: 24px;
+            color: #007bff;
+        }
+        .holiday-delete-icon {
+            top: 24px; /* Positioned below date/weather */
+            right: 2px;
+            color: #dc3545;
+        }
+
 
         /* New week-label-bubble style */
         .week-label-bubble {
