@@ -1176,6 +1176,67 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
         }
         .title-edit-save-btn:hover {
+            background-color: #005a30;
+        }
+
+
+        .banner {
+          font-weight: 600;
+          background-color: #006c3b;
+          color: #fff;
+          padding: 15px 20px;
+          margin-bottom: 20px;
+          border-radius: 8px;
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+          position: relative; /* For edit icon */
+          cursor: pointer; /* Indicate it's clickable */
+          transition: background-color 0.3s ease;
+        }
+        .banner:hover {
+            background-color: #005a30; /* Slightly darker on hover */
+        }
+        .banner-edit-icon {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.7);
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-in-out;
+        }
+        .banner:hover .banner-edit-icon {
+            opacity: 1; /* Visible on hover */
+        }
+        .banner-edit-container { /* Style for the input field when editing banner */
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .banner-edit-input {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+        .banner-edit-save-btn {
+            background-color: #c8102e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .banner-edit-save-btn:hover {
             background-color: #a00d27;
         }
         
@@ -1424,52 +1485,31 @@ const App = () => {
         }
 
         /* Corrected styles for icons within cells */
-        /* All icons that should be hidden by default */
         .date-weather-group .edit-icon,
         .date-weather-group .delete-icon,
-        .date-weather-group .holiday-edit-icon, /* Ensure these specific icons are targeted */
-        .date-weather-group .holiday-delete-icon, /* Ensure these specific icons are targeted */
         .card .edit-icon,
         .card .delete-icon,
-        .card .generate-promo-star,
-        .title-edit-icon, /* Title edit icon also hidden by default */
-        .banner-edit-icon { /* Banner edit icon also hidden by default */
-          opacity: 0; 
+        .card .generate-promo-star {
+          opacity: 0; /* Hidden by default */
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
 
         /* Hover states for icons */
-        /* Show all day-level icons on td hover */
         td:hover .date-weather-group .edit-icon,
         td:hover .date-weather-group .delete-icon,
         td:hover .date-weather-group .holiday-edit-icon,
-        td:hover .date-weather-group .holiday-delete-icon {
-            opacity: 1; /* Fully visible on td hover */
-        }
-        /* Show card-level icons on card hover */
+        td:hover .date-weather-group .holiday-delete-icon,
         .card:hover .edit-icon,
         .card:hover .delete-icon,
         .card:hover .generate-promo-star {
-            opacity: 1; /* Fully visible on card hover */
+            opacity: 1; /* Fully visible on hover */
         }
-        /* Show title edit icon on h1 hover */
-        h1:hover .title-edit-icon {
-            opacity: 1;
-        }
-        /* Show banner edit icon on banner hover */
-        .banner:hover .banner-edit-icon {
-            opacity: 1;
-        }
-
-
         /* Individual icon hover for slight scale/background change */
-        .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover,
-        .title-edit-icon:hover, .banner-edit-icon:hover {
+        .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover {
             transform: scale(1.1);
             background-color: rgba(255, 255, 255, 0.7);
         }
-        .edit-icon:active, .delete-icon:active, .generate-promo-star:active,
-        .title-edit-icon:active, .banner-edit-icon:active {
+        .edit-icon:active, .delete-icon:active, .generate-promo-star:active {
             transform: scale(0.95);
         }
         
@@ -1639,31 +1679,27 @@ const App = () => {
                 height: auto;
                 font-size: 10pt; /* Base font size for print */
             }
-            .add-event-controls,
-            .modal-overlay { /* Hide modals */
+            .add-event-controls, /* Hide the add/print buttons */
+            .modal-overlay, /* Hide any open modals */
+            .generate-promo-star, /* Hide the AI star */
+            .edit-icon, /* Hide edit icon */
+            .delete-icon, /* Hide delete icon */
+            .header-icon, /* Hide header icons (graduation cap, sun) */
+            .banner-edit-icon, /* Hide banner edit icon */
+            .copy-to-clipboard-btn, /* Hide copy to clipboard button */
+            .title-edit-icon, /* Hide title edit icon */
+            .title-edit-container, /* Hide title edit container */
+            .title-edit-save-btn { /* Hide title save button */
                 display: none !important;
             }
-            /* Explicitly hide all icons that should not be in print */
-            .generate-promo-star,
-            .edit-icon,
-            .delete-icon,
-            .header-icon, /* Graduation cap and sun icons */
-            .banner-edit-icon,
-            .copy-to-clipboard-btn,
-            .title-edit-icon,
-            .title-edit-container,
-            .title-edit-save-btn {
-                display: none !important;
-            }
-
-            .logo { 
+            .logo { /* Re-show logo for print, but control its size */
                 display: block !important;
                 text-align: center !important;
-                margin-bottom: 8px !important; 
+                margin-bottom: 8px !important; /* Reduced margin */
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 20px !important; 
+                height: 20px !important; /* Smaller logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -1671,12 +1707,12 @@ const App = () => {
             }
 
             .calendar-container {
-                box-shadow: none;
-                border: 1px solid #888;
+                box-shadow: none; /* No shadow in print */
+                border: 1px solid #888; /* More prominent border for print */
                 max-width: 100%;
                 width: 100%;
                 border-radius: 0;
-                overflow: visible;
+                overflow: visible; /* Ensure content is not hidden */
                 background: #fff; /* White background for print */
             }
             .calendar-header {
@@ -1687,9 +1723,9 @@ const App = () => {
                 background-color: #f0f0f0;
             }
             h1 {
-                font-size: 1.3em;
+                font-size: 1.3em; /* Smaller title for print */
                 margin-bottom: 0.1em;
-                color: #000;
+                color: #000; /* Black for print */
                 text-shadow: none;
                 cursor: default;
             }
@@ -1719,21 +1755,12 @@ const App = () => {
             td {
                 border: 1px solid #888;
                 height: auto;
-                min-height: 60px; /* Reduced min height for cells */
+                min-height: 60px;
                 padding: 4px;
                 display: table-cell;
                 vertical-align: top;
-                page-break-inside: avoid; /* Prevents cell content from splitting */
-                background-color: #fff !important; /* Force white background for print cells */
-                print-color-adjust: exact; /* Force color printing */
+                page-break-inside: avoid;
             }
-            /* Specific badge backgrounds for print */
-            .badge.two-dollar { background-color: #ffe8eb !important; print-color-adjust: exact; }
-            .badge.rmp50 { background-color: #e8f5e8 !important; print-color-adjust: exact; }
-            .badge.special-text-badge { background-color: #c0c0c0 !important; color: #000 !important; border-color: #888 !important; print-color-adjust: exact; }
-            .badge.monthly-offer { background: #c8102e !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
-
-
             .cell-content {
                 height: auto;
                 min-height: 0;
@@ -1757,14 +1784,12 @@ const App = () => {
                 border: none;
                 padding: 0;
                 border-radius: 0;
-                print-color-adjust: exact;
             }
             .highlight-holiday-cell .date-number-wrapper {
                 background-color: #FFD700 !important;
                 border: 1px solid #DAA520 !important;
                 padding: 2px 4px;
                 border-radius: 4px;
-                print-color-adjust: exact;
             }
             .date-number {
                 font-size: 1em;
@@ -1780,9 +1805,15 @@ const App = () => {
                 font-size: 0.65em;
                 box-shadow: none;
                 border: 1px solid #999;
-                /* Background and color adjustments handled above */
+                background-color: #f5f5f5;
+                color: #333;
                 page-break-inside: avoid;
                 margin-bottom: 2px;
+            }
+            .badge.special-text-badge {
+                background: #c0c0c0 !important;
+                color: #000 !important;
+                border: 1px solid #888 !important;
             }
             .card {
                 box-shadow: none;
@@ -1791,7 +1822,6 @@ const App = () => {
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
-                print-color-adjust: exact;
             }
             .promo-detail {
                 font-size: 0.55em;
@@ -1807,7 +1837,6 @@ const App = () => {
                 border: 1px solid #999;
                 margin-top: 4px;
                 align-self: flex-start;
-                print-color-adjust: exact;
             }
         }
 
