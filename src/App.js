@@ -144,6 +144,11 @@ const App = () => {
   const [calendarTitle, setCalendarTitle] = useState('June 2025 Marketing Calendar');
   const [isTitleEditing, setIsTitleEditing] = useState(false);
 
+  // New state for editable digital offers text
+  const [digitalOffersText, setDigitalOffersText] = useState('Cheddar Pizza & Papa\'s Pairings for $6.99');
+  const [isDigitalOffersEditing, setIsDigitalOffersEditing] = useState(false);
+
+
   // State for editing day properties
   const [editDayDate, setEditDayDate] = useState('');
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
@@ -205,8 +210,9 @@ const App = () => {
     if (db && userId && isAuthReady) {
       // Use the SHARED path for calendar data - REMOVED /users/{userId}/
       const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
+      const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
       
-      const unsubscribe = onSnapshot(calendarDocRef, (docSnap) => {
+      const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const fetchedData = docSnap.data().data; // 'data' field holds the array
           if (fetchedData) {
@@ -228,7 +234,25 @@ const App = () => {
         setIsFirestoreLoading(false);
       });
 
-      return () => unsubscribe(); // Cleanup snapshot listener
+      const unsubscribeOffers = onSnapshot(offersDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().offerText) {
+          setDigitalOffersText(docSnap.data().offerText);
+        } else {
+          console.log("No digital offers data found, setting initial offer.");
+          setDoc(offersDocRef, { offerText: initialDigitalOffersText })
+            .then(() => setDigitalOffersText(initialDigitalOffersText))
+            .catch(error => console.error("Error setting initial offers document:", error));
+        }
+      }, (error) => {
+        console.error("Error fetching digital offers data:", error);
+        // Don't block loading if offers fail, but alert if critical
+      });
+
+
+      return () => {
+        unsubscribeCalendar(); // Cleanup calendar listener
+        unsubscribeOffers(); // Cleanup offers listener
+      }; 
     } else if (isAuthReady && !userId) {
       // If auth is ready but userId is null (e.g., anonymous sign-in failed)
       setIsFirestoreLoading(false);
@@ -249,6 +273,22 @@ const App = () => {
       }
     } else {
       console.warn("Firestore or User ID not ready for saving.");
+    }
+  };
+
+  // Function to update digital offers in Firestore
+  const updateDigitalOffersInFirestore = async (newText) => {
+    if (db && userId) {
+      try {
+        const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
+        await setDoc(offersDocRef, { offerText: newText });
+        console.log("Digital offers saved to Firestore!");
+      } catch (error) {
+        console.error("Error saving digital offers to Firestore:", error);
+        showAlert("Failed to save digital offers. Please try again.");
+      }
+    } else {
+      console.warn("Firestore or User ID not ready for saving digital offers.");
     }
   };
 
@@ -709,6 +749,29 @@ const App = () => {
                 <span className="title-edit-icon">✏️</span>
             </h1>
           )}
+          {/* New: Digital Offers Box */}
+          <div className="digital-offers-box">
+            <h3 className="digital-offers-title">Digital Offers</h3>
+            {isDigitalOffersEditing ? (
+              <div className="digital-offers-edit-container">
+                <textarea
+                  value={digitalOffersText}
+                  onChange={(e) => setDigitalOffersText(e.target.value)}
+                  className="digital-offers-edit-input"
+                  rows="3"
+                ></textarea>
+                <button className="digital-offers-save-btn" onClick={() => {
+                  setIsDigitalOffersEditing(false);
+                  updateDigitalOffersInFirestore(digitalOffersText); // Save to Firestore
+                }}>Save</button>
+              </div>
+            ) : (
+              <p className="digital-offers-text" onClick={() => setIsDigitalOffersEditing(true)} title="Click to edit digital offers">
+                {digitalOffersText}
+                <span className="digital-offers-edit-icon">✏️</span>
+              </p>
+            )}
+          </div>
         </div>
         {isBannerEditing ? (
           <div className="banner-edit-container">
@@ -1151,19 +1214,15 @@ const App = () => {
             display: flex;
             gap: 10px;
             align-items: center;
-            margin-bottom: 0.5em;
         }
         .title-edit-input {
             flex-grow: 1;
             padding: 10px 15px;
             border: 1px solid #ddd;
             border-radius: 8px;
-            font-size: 2.2em; /* Match h1 size */
+            font-size: 1.1em;
             font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            color: #c8102e;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: 600;
         }
         .title-edit-save-btn {
             background-color: #006c3b;
@@ -1176,7 +1235,7 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
         }
         .title-edit-save-btn:hover {
-            background-color: #a00d27;
+            background-color: #005a30;
         }
         
         .calendar-container {
@@ -1197,12 +1256,101 @@ const App = () => {
           background: #ffffff;
           border-bottom: 1px solid #e0e0e0;
           border-radius: 12px 12px 0 0;
+          flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+          gap: 15px; /* Space between header elements */
         }
+
+        .digital-offers-box {
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0); /* Light grey gradient */
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            flex-shrink: 0; /* Prevent shrinking */
+            min-width: 200px; /* Minimum width */
+            max-width: 280px; /* Maximum width */
+            margin-left: 20px; /* Space from calendar title */
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .digital-offers-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .digital-offers-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 1.1em;
+            color: #c8102e;
+            margin-top: 0;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .digital-offers-text {
+            font-size: 0.9em;
+            color: #333;
+            line-height: 1.4;
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            word-wrap: break-word; /* Break long words */
+            margin-bottom: 0;
+        }
+        .digital-offers-edit-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.8em;
+            color: rgba(0,0,0,0.5);
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-in-out;
+        }
+        .digital-offers-box:hover .digital-offers-edit-icon {
+            opacity: 1; /* Visible on hover */
+        }
+        .digital-offers-edit-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .digital-offers-edit-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9em;
+            box-sizing: border-box;
+            resize: vertical; /* Allow vertical resizing */
+        }
+        .digital-offers-save-btn {
+            background-color: #006c3b;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .digital-offers-save-btn:hover {
+            background-color: #005a30;
+        }
+
 
         table {
           width: 100%;
           border-collapse: collapse;
           table-layout: fixed;
+        }
+        th {
+          border: 1px solid #ebebeb;
+          background-color: #f8f8f8;
+          padding: 12px 8px;
+          text-align: center;
+          font-size: 0.95em;
+          font-weight: 600;
+          color: #666;
+          text-transform: uppercase;
         }
         td {
           border: 1px solid #ebebeb;
@@ -1433,7 +1581,8 @@ const App = () => {
         .card .delete-icon,
         .card .generate-promo-star,
         .title-edit-icon, /* Title edit icon also hidden by default */
-        .banner-edit-icon { /* Banner edit icon also hidden by default */
+        .banner-edit-icon, /* Banner edit icon also hidden by default */
+        .digital-offers-edit-icon { /* Digital offers edit icon hidden by default */
           opacity: 0; 
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
@@ -1459,15 +1608,20 @@ const App = () => {
         .banner:hover .banner-edit-icon {
             opacity: 1;
         }
+        /* Show digital offers edit icon on box hover */
+        .digital-offers-box:hover .digital-offers-edit-icon {
+            opacity: 1;
+        }
 
 
         /* Individual icon hover for slight scale/background change */
         .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover,
-        .title-edit-icon:hover, .banner-edit-icon:hover {
+        .title-edit-icon:hover, .banner-edit-icon:hover, .digital-offers-edit-icon:hover {
             transform: scale(1.1);
             background-color: rgba(255, 255, 255, 0.7);
         }
-        .edit-icon:active, .delete-icon:active, .generate-promo-star:active {
+        .edit-icon:active, .delete-icon:active, .generate-promo-star:active,
+        .title-edit-icon:active, .banner-edit-icon:active, .digital-offers-edit-icon:active {
             transform: scale(0.95);
         }
         
@@ -1638,10 +1792,7 @@ const App = () => {
                 font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
-            .modal-overlay { /* Hide modals */
-                display: none !important;
-            }
-            /* Explicitly hide all icons that should not be in print */
+            .modal-overlay,
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -1650,8 +1801,12 @@ const App = () => {
             .copy-to-clipboard-btn,
             .title-edit-icon,
             .title-edit-container,
-            .title-edit-save-btn {
-                display: none !important;
+            .title-edit-save-btn,
+            .digital-offers-box, /* Hide digital offers box from print */
+            .digital-offers-edit-icon,
+            .digital-offers-edit-container,
+            .digital-offers-save-btn {
+                display: none !important; /* Hide all interactive/non-print elements */
             }
 
             .logo { 
@@ -1665,7 +1820,7 @@ const App = () => {
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
-                filter: grayscale(50%);
+                filter: grayscale(50%); /* Slightly desaturate for ink saving */
             }
 
             .calendar-container {
@@ -1676,13 +1831,15 @@ const App = () => {
                 border-radius: 0;
                 overflow: visible;
                 background: #fff; /* White background for print */
+                print-color-adjust: exact; /* Force color printing for container */
             }
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 1px solid #888;
                 padding: 0.4rem 0;
                 border-radius: 0;
-                background-color: #f0f0f0;
+                background-color: #f0f0f0; /* Light grey background for header */
+                print-color-adjust: exact;
             }
             h1 {
                 font-size: 1.3em;
@@ -1690,16 +1847,18 @@ const App = () => {
                 color: #000;
                 text-shadow: none;
                 cursor: default;
+                print-color-adjust: exact;
             }
             .banner {
                 box-shadow: none;
                 border-radius: 0;
                 padding: 6px 8px;
                 margin-bottom: 8px;
-                background-color: #c0c0c0;
+                background-color: #c0c0c0; /* Slightly darker grey for banner in print */
                 color: #000;
                 border-bottom: 1px solid #888;
                 font-size: 0.9em;
+                print-color-adjust: exact;
             }
             table {
                 width: 100%;
@@ -1713,23 +1872,24 @@ const App = () => {
                 font-size: 0.8em;
                 color: #000;
                 font-weight: 700;
+                print-color-adjust: exact;
             }
             td {
                 border: 1px solid #888;
-                height: auto;
+                height: auto; /* Allow height to adapt */
                 min-height: 60px; /* Reduced min height for cells */
                 padding: 4px;
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid; /* Prevents cell content from splitting */
-                background-color: #fff !important; /* Force white background for print cells */
+                background-color: #fdfdfd !important; /* Force light background for print cells */
                 print-color-adjust: exact; /* Force color printing */
             }
-            /* Specific badge backgrounds for print */
-            .badge.two-dollar { background-color: #ffe8eb !important; print-color-adjust: exact; }
-            .badge.rmp50 { background-color: #e8f5e8 !important; print-color-adjust: exact; }
-            .badge.special-text-badge { background-color: #c0c0c0 !important; color: #000 !important; border-color: #888 !important; print-color-adjust: exact; }
-            .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%); color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
+            /* Specific badge backgrounds for print - force their original colors */
+            .badge.two-dollar { background-color: #ffe8eb !important; color: #c8102e !important; print-color-adjust: exact; }
+            .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
+            .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
+            .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
 
 
             .cell-content {
@@ -1768,10 +1928,12 @@ const App = () => {
                 font-size: 1em;
                 color: #000;
                 font-weight: 700;
+                print-color-adjust: exact;
             }
             .weather {
                 font-size: 0.65em;
                 color: #555;
+                print-color-adjust: exact;
             }
             .badge {
                 padding: 3px 5px;
@@ -1781,6 +1943,7 @@ const App = () => {
                 /* Background and color adjustments handled above */
                 page-break-inside: avoid;
                 margin-bottom: 2px;
+                print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
@@ -1795,6 +1958,7 @@ const App = () => {
                 font-size: 0.55em;
                 margin-top: 2px;
                 color: #666;
+                print-color-adjust: exact;
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
