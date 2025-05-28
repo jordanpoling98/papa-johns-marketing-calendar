@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+// Import Firebase modules
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Define a helper function to get weather icon based on temperature
 const getWeatherIcon = (temp) => {
@@ -44,7 +48,7 @@ const initialCalendarData = [
   { date: 18, day: 'Wed', weather: { high: 73, icon: getWeatherIcon(73) }, promos: [
     { id: 'promo7', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
   ], holiday: null, weekLabel: ''},
-  { date: 19, day: 'Thu', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "", highlight: true }, weekLabel: '' },
+  { date: 19, day: 'Thu', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], specialDay: '', specialText: 'Juneteenth', holiday: { id: 'holiday2', title: "Juneteenth", notes: "Freedom Day", highlight: true }, weekLabel: '' },
   { date: 20, day: 'Fri', weather: { high: 90, icon: getWeatherIcon(90) }, promos: [], holiday: null, weekLabel: '' },
   { date: 21, day: 'Sat', weather: { high: 91, icon: getWeatherIcon(91) }, promos: [], holiday: null, weekLabel: '' },
   { date: 22, day: 'Sun', weather: { high: 86, icon: getWeatherIcon(86) }, promos: [], holiday: null, weekLabel: '' },
@@ -96,6 +100,13 @@ const App = () => {
   const [isAlertModalVisible, setIsAlertModalVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
+  // Firebase states
+  const [db, setDb] = useState(null);
+  const [auth, setAuth] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
+
   // Function to show custom alert
   const showAlert = (message) => {
     setAlertMessage(message);
@@ -136,6 +147,96 @@ const App = () => {
   // Gemini API Key
   const GEMINI_API_KEY = "AIzaSyAa7Fkbw1GRZD2DTCgvq-lHWFYKnX1GNzE";
 
+  // Global variables for Firebase config and app ID (as per instructions)
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+  // Initialize Firebase and set up authentication
+  useEffect(() => {
+    try {
+      const app = initializeApp(firebaseConfig);
+      const firestore = getFirestore(app);
+      const authentication = getAuth(app);
+
+      setDb(firestore);
+      setAuth(authentication);
+
+      const unsubscribe = onAuthStateChanged(authentication, async (user) => {
+        if (user) {
+          setUserId(user.uid);
+        } else {
+          // Sign in anonymously if no user is authenticated
+          try {
+            await signInAnonymously(authentication);
+            setUserId(authentication.currentUser.uid); // Set userId after anonymous sign-in
+          } catch (error) {
+            console.error("Error signing in anonymously:", error);
+            showAlert("Failed to sign in. Data persistence may not work.");
+          }
+        }
+        setIsAuthReady(true); // Auth state is ready
+      });
+
+      return () => unsubscribe(); // Cleanup auth listener
+    } catch (error) {
+      console.error("Error initializing Firebase:", error);
+      showAlert("Failed to initialize Firebase. Data saving will not work.");
+      setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
+    }
+  }, []); // Run only once on component mount
+
+  // Fetch and sync calendar data from Firestore
+  useEffect(() => {
+    if (db && userId && isAuthReady) {
+      const calendarDocRef = doc(db, `artifacts/${appId}/users/${userId}/calendarData/juneCalendar`);
+      
+      const unsubscribe = onSnapshot(calendarDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const fetchedData = docSnap.data().data; // 'data' field holds the array
+          if (fetchedData) {
+            setCalendar(fetchedData);
+          } else {
+            setCalendar(initialCalendarData); // Fallback to initial if data field is empty
+          }
+        } else {
+          // Document doesn't exist, create it with initial data
+          console.log("No calendar data found, creating initial data in Firestore.");
+          setDoc(calendarDocRef, { data: initialCalendarData })
+            .then(() => setCalendar(initialCalendarData))
+            .catch(error => console.error("Error setting initial document:", error));
+        }
+        setIsFirestoreLoading(false);
+      }, (error) => {
+        console.error("Error fetching Firestore data:", error);
+        showAlert("Failed to load saved data. Please check your internet connection or Firebase setup.");
+        setIsFirestoreLoading(false);
+      });
+
+      return () => unsubscribe(); // Cleanup snapshot listener
+    } else if (isAuthReady && !userId) {
+      // If auth is ready but userId is null (e.g., anonymous sign-in failed)
+      setIsFirestoreLoading(false);
+    }
+  }, [db, userId, isAuthReady, appId]); // Re-run when db, userId, or authReady changes
+
+  // Function to update calendar in Firestore
+  const updateCalendarInFirestore = async (updatedCalendar) => {
+    if (db && userId) {
+      try {
+        const calendarDocRef = doc(db, `artifacts/${appId}/users/${userId}/calendarData/juneCalendar`);
+        await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
+        console.log("Calendar data saved to Firestore!");
+      } catch (error) {
+        console.error("Error saving calendar to Firestore:", error);
+        showAlert("Failed to save data. Please try again.");
+      }
+    } else {
+      console.warn("Firestore or User ID not ready for saving.");
+    }
+  };
+
 
   // Function to open Add Event modal
   const openAddEventModal = () => {
@@ -164,7 +265,7 @@ const App = () => {
     if (day) {
       const promo = day.promos.find(p => p.id === promoId);
       if (promo) {
-        setEventDate(dayDate);
+        setEventDate(dayData.date); // Use dayData.date directly
         setEventTitle(promo.text);
         setEventPromoCode(promo.detail || '');
         setEventColor(promo.type);
@@ -192,7 +293,7 @@ const App = () => {
   const openEditDayModal = (dayDate) => {
     const day = calendar.find(d => d.date === dayDate);
     if (day) {
-      setEditDayDate(dayDate);
+      setEditDayDate(day.date); // Corrected from dayData.date to day.date
       setEditDayWeatherHigh(day.weather.high);
       setEditDayWeekLabel(day.weekLabel || '');
       setSelectedDayData(day); // Store the entire day object for context
@@ -210,8 +311,9 @@ const App = () => {
       return;
     }
 
+    let updatedCalendar;
     if (selectedEvent) { // Editing existing event
-      setCalendar(prevCalendar => prevCalendar.map(day => {
+      updatedCalendar = calendar.map(day => {
         if (day.date === selectedEvent.dayDate) {
           return {
             ...day,
@@ -223,7 +325,7 @@ const App = () => {
           };
         }
         return day;
-      }));
+      });
       setIsEditEventModalVisible(false);
     } else { // Adding new event
       const newPromo = {
@@ -233,14 +335,16 @@ const App = () => {
         detail: eventPromoCode.trim() || undefined
       };
 
-      setCalendar(prevCalendar => prevCalendar.map(day => {
+      updatedCalendar = calendar.map(day => {
         if (day.date === dateNum) {
           return { ...day, promos: [...day.promos, newPromo] };
         }
         return day;
-      }));
+      });
       setIsAddEventModalVisible(false);
     }
+    setCalendar(updatedCalendar);
+    updateCalendarInFirestore(updatedCalendar);
 
     // Reset form fields
     setEventDate('');
@@ -265,7 +369,7 @@ const App = () => {
       highlight: holidayHighlight
     };
 
-    setCalendar(prevCalendar => prevCalendar.map(day => {
+    const updatedCalendar = calendar.map(day => {
       if (day.date === dateNum) {
         // Determine specialDayClass based on holiday title
         let specialDayClass = '';
@@ -285,7 +389,9 @@ const App = () => {
         };
       }
       return day;
-    }));
+    });
+    setCalendar(updatedCalendar);
+    updateCalendarInFirestore(updatedCalendar);
 
     setIsAddHolidayModalVisible(false);
     setIsEditHolidayModalVisible(false); // Close edit modal too
@@ -305,7 +411,7 @@ const App = () => {
         return;
     }
 
-    setCalendar(prevCalendar => prevCalendar.map(day => {
+    const updatedCalendar = calendar.map(day => {
         if (day.date === dateNum) {
             return {
                 ...day,
@@ -317,7 +423,10 @@ const App = () => {
             };
         }
         return day;
-    }));
+    });
+    setCalendar(updatedCalendar);
+    updateCalendarInFirestore(updatedCalendar);
+
     setIsEditDayModalVisible(false);
     setEditDayDate('');
     setEditDayWeatherHigh('');
@@ -327,9 +436,8 @@ const App = () => {
 
 
   const handleDeleteEvent = (dayDate, promoId) => {
-    // Using custom alert for confirmation
-    showAlert('Are you sure you want to delete this event?', () => {
-      setCalendar(prevCalendar => prevCalendar.map(day => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      const updatedCalendar = calendar.map(day => {
         if (day.date === dayDate) {
           return {
             ...day,
@@ -337,15 +445,15 @@ const App = () => {
           };
         }
         return day;
-      }));
-      hideAlert(); // Close alert after action
-    });
+      });
+      setCalendar(updatedCalendar);
+      updateCalendarInFirestore(updatedCalendar);
+    }
   };
 
   const handleDeleteHoliday = (dayDate) => {
-    // Using custom alert for confirmation
-    showAlert('Are you sure you want to delete this holiday?', () => {
-      setCalendar(prevCalendar => prevCalendar.map(day => {
+    if (window.confirm('Are you sure you want to delete this holiday?')) {
+      const updatedCalendar = calendar.map(day => {
         if (day.date === dayDate) {
           return {
             ...day,
@@ -355,15 +463,15 @@ const App = () => {
           };
         }
         return day;
-      }));
-      hideAlert(); // Close alert after action
-    });
+      });
+      setCalendar(updatedCalendar);
+      updateCalendarInFirestore(updatedCalendar);
+    }
   };
 
   const handleDeleteDay = (dayDate) => {
-    // Using custom alert for confirmation
-    showAlert(`Are you sure you want to clear all content for day ${dayDate}?`, () => {
-        setCalendar(prevCalendar => prevCalendar.map(day => {
+    if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
+        const updatedCalendar = calendar.map(day => {
             if (day.date === dayDate) {
                 return {
                     ...day,
@@ -376,9 +484,10 @@ const App = () => {
                 };
             }
             return day;
-        }));
-        hideAlert(); // Close alert after action
-    });
+        });
+        setCalendar(updatedCalendar);
+        updateCalendarInFirestore(updatedCalendar);
+    }
   };
 
   // Function to copy text to clipboard
@@ -513,12 +622,46 @@ const App = () => {
 
   const weeks = chunkIntoWeeks(calendar);
 
+  // Show loading indicator if Firestore is still loading data
+  if (isFirestoreLoading) {
+    return (
+      <div className="body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div className="loading-indicator">Loading Calendar...</div>
+        <style>{`
+          .loading-indicator {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #777;
+            font-size: 1.5em;
+          }
+          .loading-indicator::after {
+            content: '...';
+            animation: loading-dots 1s infinite;
+          }
+          @keyframes loading-dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="body">
       <div className="logo">
         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Papa_Johns_logo.svg/2560px-Papa_Johns_logo.svg.png" alt="Papa John's Logo" />
       </div>
       
+      {/* Display User ID */}
+      {userId && (
+        <div className="user-id-display">
+          User ID: {userId}
+        </div>
+      )}
+
       {/* New: Add Event Controls */}
       <div className="add-event-controls">
         <div className="add-button-container">
@@ -1327,9 +1470,9 @@ const App = () => {
         }
         .header-icon {
             vertical-align: middle;
-            margin: 0 10px; /* Increased margin for more space */
-            width: 40px; /* Larger icons */
-            height: 40px; /* Larger icons */
+            margin: 0 10px;
+            width: 40px;
+            height: 40px;
         }
 
         /* New styles for the hidden star emoji button */
@@ -1339,7 +1482,7 @@ const App = () => {
           right: 6px;
           font-size: 1.1em;
           cursor: pointer;
-          opacity: 0.3;
+          opacity: 0; /* Hidden by default */
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
           line-height: 1;
           padding: 3px;
@@ -1354,302 +1497,6 @@ const App = () => {
         .generate-promo-star:active {
           transform: scale(0.95);
         }
-
-        /* New week-label-bubble style */
-        .week-label-bubble {
-            background-color: #e8f0f8;
-            color: #555;
-            font-size: 0.65em;
-            font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 12px;
-            margin-top: auto;
-            align-self: flex-end;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #d0dbe8;
-        }
-
-        /* Modal styles */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.6);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-        .modal-overlay.visible {
-          opacity: 1;
-          visibility: visible;
-        }
-
-        .modal-content {
-          background-color: #fff;
-          padding: 25px;
-          border-radius: 10px;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-          width: 90%;
-          max-width: 500px;
-          transform: translateY(-20px);
-          transition: transform 0.3s ease-in-out;
-          position: relative;
-        }
-        .modal-overlay.visible .modal-content {
-          transform: translateY(0);
-        }
-
-        .modal-close-btn {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: none;
-          border: none;
-          font-size: 1.5em;
-          cursor: pointer;
-          color: #888;
-          transition: color 0.2s;
-        }
-        .modal-close-btn:hover {
-          color: #333;
-        }
-
-        .modal-title {
-          font-family: 'Montserrat', sans-serif;
-          font-weight: 700;
-          font-size: 1.3em;
-          color: #c8102e;
-          margin-bottom: 15px;
-          text-align: center;
-        }
-
-        .promo-copy-output {
-          background-color: #f8f8f8;
-          border: 1px solid #eee;
-          padding: 15px;
-          border-radius: 8px;
-          min-height: 80px;
-          font-size: 0.9em;
-          line-height: 1.5;
-          color: #444;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-
-        .loading-indicator {
-          text-align: center;
-          padding: 20px;
-          font-style: italic;
-          color: #777;
-        }
-        .loading-indicator::after {
-          content: '...';
-          animation: loading-dots 1s infinite;
-        }
-        @keyframes loading-dots {
-          0%, 20% { content: '.'; }
-          40% { content: '..'; }
-          60%, 100% { content: '...'; }
-        }
-
-        /* Add/Edit Event Form Styles */
-        .add-event-controls {
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            justify-content: flex-end; /* Align to the right */
-            margin-bottom: 15px;
-            position: relative; /* For dropdown positioning if needed later */
-        }
-
-        .add-button {
-            background-color: #006c3b;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 1.5em; /* Larger plus sign */
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
-            line-height: 1; /* Keep plus sign centered */
-            margin-left: 10px; /* Space between buttons */
-        }
-        .add-button:hover {
-            background-color: #005a30;
-            transform: translateY(-1px);
-        }
-        .add-button:active {
-            transform: translateY(0);
-        }
-
-        .print-button {
-            background-color: #e0e0e0; /* Light grey for print button */
-            color: #555;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 1.5em; /* Same size as add button */
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
-            line-height: 1;
-            margin-left: 10px; /* Space between buttons */
-        }
-        .print-button:hover {
-            background-color: #d0d0d0;
-            transform: translateY(-1px);
-        }
-        .print-button:active {
-            transform: translateY(0);
-        }
-
-        .add-event-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            font-size: 0.9em;
-            color: #555;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group textarea {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .form-group input[type="number"]:disabled {
-            background-color: #f0f0f0;
-            cursor: not-allowed;
-        }
-        .checkbox-group {
-            flex-direction: row; /* Checkbox label on same line */
-            align-items: center;
-            gap: 8px;
-            margin-top: 5px;
-        }
-        .checkbox-group input[type="checkbox"] {
-            margin-bottom: 0;
-        }
-
-
-        .color-options {
-            display: flex;
-            gap: 15px;
-            margin-top: 5px;
-        }
-
-        .color-options label {
-            display: flex;
-            align-items: center;
-            font-size: 0.9em;
-            font-weight: 400;
-            cursor: pointer;
-        }
-
-        .color-options input[type="radio"] {
-            margin-right: 5px;
-            cursor: pointer;
-        }
-
-        .submit-event-btn {
-            background-color: #c8102e;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 20px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out;
-            margin-top: 20px;
-        }
-        .submit-event-btn:hover {
-            background-color: #a00d27;
-        }
-
-        /* Edit/Delete Icons */
-        .edit-icon, .delete-icon {
-            position: absolute;
-            font-size: 0.9em; /* Smaller icons */
-            cursor: pointer;
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
-            line-height: 1;
-            padding: 3px;
-            border-radius: 50%;
-            background-color: transparent;
-        }
-        /* Common hover for both promo and holiday icons */
-        .card:hover .edit-icon,
-        .card:hover .delete-icon,
-        .date-weather-group:hover .day-edit-icon, /* New: Day edit/delete hover */
-        .date-weather-group:hover .day-delete-icon,
-        .date-weather-group:hover .holiday-edit-icon,
-        .date-weather-group:hover .holiday-delete-icon {
-            opacity: 0.7; /* Visible on card/date-weather-group hover */
-        }
-        .edit-icon:hover, .delete-icon:hover {
-            opacity: 1;
-            transform: scale(1.1);
-            background-color: rgba(255, 255, 255, 0.7);
-        }
-        /* Promo card icons */
-        .card .edit-icon {
-            top: 4px; /* Align with star */
-            right: 28px; /* Position next to star */
-            color: #007bff; /* Blue for edit */
-        }
-        .card .delete-icon {
-            top: 4px; /* Align with star */
-            right: 50px; /* Position next to edit */
-            color: #dc3545; /* Red for delete */
-        }
-        /* Day edit/delete icons (positioned relative to date-weather-group) */
-        .day-edit-icon {
-            top: 0px; /* Aligned with top of date-weather-group */
-            right: 24px; /* Space from right */
-            color: #007bff;
-        }
-        .day-delete-icon {
-            top: 0px; /* Aligned with top of date-weather-group */
-            right: 2px; /* Close to the right edge */
-            color: #dc3545;
-        }
-        /* Holiday icons (positioned relative to date-weather-group) */
-        .holiday-edit-icon {
-            top: 24px; /* Positioned below date/weather */
-            right: 24px;
-            color: #007bff;
-        }
-        .holiday-delete-icon {
-            top: 24px; /* Positioned below date/weather */
-            right: 2px;
-            color: #dc3545;
-        }
-
 
         /* New week-label-bubble style */
         .week-label-bubble {
@@ -1793,7 +1640,7 @@ const App = () => {
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
-                filter: grayscale(50%); /* Slightly desaturate for ink saving */
+                filter: grayscale(50%);
             }
 
             .calendar-container {
@@ -1807,134 +1654,126 @@ const App = () => {
             }
             .calendar-header {
                 box-shadow: none;
-                border-bottom: 1px solid #888; /* More prominent border for print */
-                padding: 0.4rem 0; /* Reduced padding */
+                border-bottom: 1px solid #888;
+                padding: 0.4rem 0;
                 border-radius: 0;
-                background-color: #f0f0f0; /* Light grey background for header */
+                background-color: #f0f0f0;
             }
             h1 {
                 font-size: 1.3em; /* Smaller title for print */
                 margin-bottom: 0.1em;
                 color: #000; /* Black for print */
                 text-shadow: none;
-                cursor: default; /* Remove pointer for print */
+                cursor: default;
             }
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 6px 8px; /* Reduced padding */
-                margin-bottom: 8px; /* Reduced margin */
-                background-color: #c0c0c0; /* Slightly darker grey for banner in print */
-                color: #000; /* Black text for print */
-                border-bottom: 1px solid #888; /* Add a bottom border */
-                font-size: 0.9em; /* Smaller font for banner */
+                padding: 6px 8px;
+                margin-bottom: 8px;
+                background-color: #c0c0c0;
+                color: #000;
+                border-bottom: 1px solid #888;
+                font-size: 0.9em;
             }
             table {
                 width: 100%;
-                table-layout: fixed; /* Keep fixed layout for columns */
+                table-layout: fixed;
                 border-collapse: collapse;
             }
             th {
-                background-color: #f8f8f8; /* Very light background */
-                border: 1px solid #888; /* More prominent border */
-                padding: 6px 4px; /* Reduced padding */
-                font-size: 0.8em; /* Smaller font */
+                background-color: #f8f8f8;
+                border: 1px solid #888;
+                padding: 6px 4px;
+                font-size: 0.8em;
                 color: #000;
-                font-weight: 700; /* Make headers bold */
+                font-weight: 700;
             }
             td {
-                border: 1px solid #888; /* More prominent border */
-                height: auto; /* Allow height to expand */
-                min-height: 60px; /* Reduced minimum height for cells */
-                padding: 4px; /* Reduced padding */
-                display: table-cell; /* Crucial: Ensure td behaves as a table cell */
+                border: 1px solid #888;
+                height: auto;
+                min-height: 60px;
+                padding: 4px;
+                display: table-cell;
                 vertical-align: top;
-                page-break-inside: avoid; /* Prevent cells from breaking across pages */
+                page-break-inside: avoid;
             }
             .cell-content {
-                height: auto; /* Allow content to dictate height */
-                min-height: 0; /* Reset min-height */
-                display: flex; /* Keep flexbox for internal content layout */
+                height: auto;
+                min-height: 0;
+                display: flex;
                 flex-direction: column;
                 justify-content: flex-start;
                 align-items: flex-start;
             }
             .date-weather-group {
                 display: flex;
-                flex-direction: column; /* Stack date and weather vertically */
+                flex-direction: column;
                 align-items: flex-start;
-                gap: 2px; /* Smaller gap */
-                margin-bottom: 4px; /* Less space */
-                position: relative; /* For holiday edit/delete icons in print */
+                gap: 2px;
+                margin-bottom: 4px;
+                position: relative;
                 width: 100%;
             }
             /* Holiday date background in print */
             .date-number-wrapper {
-                background-color: transparent; /* Default transparent */
+                background-color: transparent;
                 border: none;
                 padding: 0;
                 border-radius: 0;
             }
             .highlight-holiday-cell .date-number-wrapper {
-                background-color: #FFD700 !important; /* Solid yellow for highlight */
+                background-color: #FFD700 !important;
                 border: 1px solid #DAA520 !important;
                 padding: 2px 4px;
                 border-radius: 4px;
             }
             .date-number {
-                font-size: 1em; /* Smaller date number */
+                font-size: 1em;
                 color: #000;
                 font-weight: 700;
             }
             .weather {
-                font-size: 0.65em; /* Even smaller weather text */
+                font-size: 0.65em;
                 color: #555;
             }
             .badge {
-                padding: 3px 5px; /* Reduced padding */
-                font-size: 0.65em; /* Smaller font */
+                padding: 3px 5px;
+                font-size: 0.65em;
                 box-shadow: none;
-                border: 1px solid #999; /* More prominent border for badges */
-                background-color: #f5f5f5; /* Lighter background */
-                color: #333; /* Darker text */
-                page-break-inside: avoid; /* Prevent badges from breaking */
-                margin-bottom: 2px; /* Less space between badges/cards */
-            }
-            .badge.two-dollar {
-                background-color: #ffe8eb; /* Keep light red */
-                color: #c8102e;
-            }
-            .badge.rmp50 {
-                background-color: #e8f5e8; /* Keep light green */
-                color: #006c3b;
+                border: 1px solid #999;
+                background-color: #f5f5f5;
+                color: #333;
+                page-break-inside: avoid;
+                margin-bottom: 2px;
             }
             .badge.special-text-badge {
-                background: #c0c0c0 !important; /* Darker grey for special badges in print */
+                background: #c0c0c0 !important;
                 color: #000 !important;
                 border: 1px solid #888 !important;
             }
             .card {
                 box-shadow: none;
-                padding: 4px; /* Reduced padding */
-                margin-top: 4px; /* Reduced margin */
-                border: 1px solid #ccc; /* Lighter card border */
+                padding: 4px;
+                margin-top: 4px;
+                border: 1px solid #ccc;
                 background-color: #fff;
-                page-break-inside: avoid; /* Prevent cards from breaking */
+                page-break-inside: avoid;
             }
             .promo-detail {
-                font-size: 0.55em; /* Even smaller font */
-                margin-top: 2px; /* Less space */
+                font-size: 0.55em;
+                margin-top: 2px;
                 color: #666;
             }
             .week-label-bubble {
-                background-color: #e0e0e0; /* Darker grey */
+                background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.55em; /* Even smaller font */
-                padding: 2px 5px; /* Reduced padding */
+                font-size: 0.55em;
+                padding: 2px 5px;
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 4px; /* Adjust margin for print */
-                align-self: flex-start; /* Align to left in print */
+                margin-top: 4px;
+                align-self: flex-start;
             }
         }
 
@@ -1974,8 +1813,8 @@ const App = () => {
                 height: 20px;
             }
             .header-icon { 
-                width: 25px; /* Adjusted for mobile */
-                height: 25px; /* Adjusted for mobile */
+                width: 25px;
+                height: 25px;
                 margin: 0 5px;
             }
             .modal-content {
