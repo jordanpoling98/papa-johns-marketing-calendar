@@ -72,7 +72,7 @@ const initialCalendarData = [
 ];
 
 // Define initial text for digital offers
-const initialDigitalOffersText = 'Cheddar Pizza & Papa\'s Pairings for $6.99';
+const initialDigitalOffersText = 'Cheddar Crust (1 top for $12.99) and Papa\'s Pairings for $6.99';
 
 // Custom Alert Modal Component
 const AlertModal = ({ message, onClose }) => {
@@ -362,29 +362,57 @@ const App = () => {
 
   const handleAddEditEventSubmit = (e) => {
     e.preventDefault();
-    const dateNum = parseInt(eventDate, 10);
+    const oldDayDate = selectedEvent ? selectedEvent.dayDate : null; // Capture old date if editing
+    const newDayDate = parseInt(eventDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum > 31 || !eventTitle.trim()) { // Max 31 days
+    if (isNaN(newDayDate) || newDayDate < 1 || newDayDate > 31 || !eventTitle.trim()) { // Max 31 days
       showAlert('Please enter a valid date (1-31) and promo title.');
       return;
     }
 
-    let updatedCalendar;
+    let updatedCalendar = [...calendar]; // Create a mutable copy
+
+    if (selectedEvent && oldDayDate !== newDayDate) {
+        // If date is changed, remove from old day's promos
+        updatedCalendar = updatedCalendar.map(day => {
+            if (day.date === oldDayDate) {
+                return {
+                    ...day,
+                    promos: day.promos.filter(promo => promo.id !== selectedEvent.promoId)
+                };
+            }
+            return day;
+        });
+    }
+
+    // Find or create the target day for the new/edited promo
+    const targetDayIndex = updatedCalendar.findIndex(day => day.date === newDayDate);
+    let targetDay;
+    if (targetDayIndex !== -1) {
+        targetDay = { ...updatedCalendar[targetDayIndex] };
+    } else {
+        // Create a new day entry if it doesn't exist (e.g., if moving from June to July)
+        // This assumes initialCalendarData covers all possible dates within the month range
+        // For cross-month moves, you'd need more complex logic to create new month structures.
+        showAlert("Cannot move event to a date outside the current month's defined range.");
+        return;
+    }
+
     if (selectedEvent) { // Editing existing event
-      updatedCalendar = calendar.map(day => {
-        if (day.date === selectedEvent.dayDate) {
-          return {
-            ...day,
-            promos: day.promos.map(promo =>
-              promo.id === selectedEvent.promoId
-                ? { ...promo, type: eventColor, text: eventTitle.trim(), detail: eventPromoCode.trim() || undefined }
-                : promo
-            )
-          };
-        }
-        return day;
-      });
-      setIsEditEventModalVisible(false);
+      targetDay.promos = targetDay.promos.map(promo =>
+        promo.id === selectedEvent.promoId
+          ? { ...promo, type: eventColor, text: eventTitle.trim(), detail: eventPromoCode.trim() || undefined }
+          : promo
+      );
+      // If the event was moved to a new day, ensure it's added if it wasn't already there
+      if (oldDayDate !== newDayDate && !targetDay.promos.some(p => p.id === selectedEvent.promoId)) {
+          targetDay.promos.push({
+              id: selectedEvent.promoId,
+              type: eventColor,
+              text: eventTitle.trim(),
+              detail: eventPromoCode.trim() || undefined
+          });
+      }
     } else { // Adding new event
       const newPromo = {
         id: `promo${Date.now()}`,
@@ -392,18 +420,22 @@ const App = () => {
         text: eventTitle.trim(),
         detail: eventPromoCode.trim() || undefined
       };
-
-      updatedCalendar = calendar.map(day => {
-        if (day.date === dateNum) {
-          return { ...day, promos: [...day.promos, newPromo] };
-        }
-        return day;
-      });
-      setIsAddEventModalVisible(false);
+      targetDay.promos.push(newPromo);
     }
+    
+    // Update the calendar with the modified target day
+    if (targetDayIndex !== -1) {
+        updatedCalendar[targetDayIndex] = targetDay;
+    } else {
+        // If a new day was created, add it to the calendar (and sort if necessary)
+        updatedCalendar.push(targetDay);
+        updatedCalendar.sort((a, b) => a.date - b.date);
+    }
+
     setCalendar(updatedCalendar);
     updateCalendarInFirestore(updatedCalendar);
 
+    setIsEditEventModalVisible(false);
     // Reset form fields
     setEventDate('');
     setEventTitle('');
@@ -693,10 +725,6 @@ const App = () => {
             color: #777;
             font-size: 1.5em;
           }
-          .loading-indicator::after {
-            content: '...';
-            animation: loading-dots 1s infinite;
-          }
           @keyframes loading-dots {
             0%, 20% { content: '.'; }
             40% { content: '..'; }
@@ -974,7 +1002,7 @@ const App = () => {
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                   required
-                  disabled={!!selectedEvent}  
+                  // Removed disabled attribute to allow editing date
                 />
               </div>
               <div className="form-group">
@@ -1783,7 +1811,7 @@ const App = () => {
         @media print {
             @page {
                 size: landscape; /* Set page to landscape */
-                margin: 0.5in; /* Add a small margin for printing */
+                margin: 0.2in; /* Reduced margin for more space */
             }
             body {
                 background-color: #fff; /* White background for print */
@@ -1792,7 +1820,7 @@ const App = () => {
                 display: block; /* Override flex for print */
                 width: 100%;
                 height: auto;
-                font-size: 10pt; /* Base font size for print */
+                font-size: 9pt; /* Slightly smaller base font size for print */
             }
             .add-event-controls,
             .modal-overlay { /* Hide modals */
@@ -1810,39 +1838,15 @@ const App = () => {
             .title-edit-save-btn {
                 display: none !important; /* Hide all interactive/non-print elements */
             }
-            /* Ensure the digital offers box is VISIBLE in print */
-            .digital-offers-box {
-                display: block !important; /* Make it visible */
-                flex-shrink: 1 !important; /* Allow shrinking if needed */
-                min-width: unset !important; /* Remove min-width constraint */
-                max-width: unset !important; /* Remove max-width constraint */
-                margin-left: 0 !important; /* Remove left margin */
-                padding: 8px 12px !important; /* Adjust padding for print */
-                box-shadow: none !important; /* Remove shadow for print */
-                border: 1px solid #888 !important; /* Add a visible border */
-                print-color-adjust: exact; /* Force color printing */
-            }
-            .digital-offers-title {
-                font-size: 0.9em !important; /* Smaller font for print */
-                margin-bottom: 4px !important;
-                color: #c8102e !important; /* Ensure color prints */
-                print-color-adjust: exact;
-            }
-            .digital-offers-text {
-                font-size: 0.7em !important; /* Smaller font for print */
-                color: #333 !important; /* Ensure color prints */
-                print-color-adjust: exact;
-            }
-
 
             .logo { 
                 display: block !important;
                 text-align: center !important;
-                margin-bottom: 8px !important; 
+                margin-bottom: 5px !important; /* Reduced margin */
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 20px !important; 
+                height: 15px !important; /* Smaller logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -1862,19 +1866,19 @@ const App = () => {
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 1px solid #888;
-                padding: 0.4rem 0;
+                padding: 0.2rem 0; /* Reduced padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
                 print-color-adjust: exact;
                 flex-wrap: nowrap !important; /* Prevent wrapping in header for print */
                 justify-content: space-between !important; /* Distribute items */
                 align-items: center !important;
-                padding-left: 10px !important; /* Add some padding */
-                padding-right: 10px !important;
+                padding-left: 5px !important; /* Add some padding */
+                padding-right: 5px !important;
             }
             h1 {
-                font-size: 1.3em;
-                margin-bottom: 0.1em;
+                font-size: 1.1em; /* Smaller font size for print */
+                margin-bottom: 0.05em; /* Reduced margin */
                 color: #000;
                 text-shadow: none;
                 cursor: default;
@@ -1885,14 +1889,41 @@ const App = () => {
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 6px 8px;
-                margin-bottom: 8px;
+                padding: 4px 6px; /* Reduced padding */
+                margin-bottom: 5px; /* Reduced margin */
                 background-color: #c0c0c0; /* Slightly darker grey for banner in print */
                 color: #000;
                 border-bottom: 1px solid #888;
-                font-size: 0.9em;
+                font-size: 0.8em; /* Smaller font for banner */
                 print-color-adjust: exact;
             }
+            /* Digital Offers Box for Print */
+            .digital-offers-box {
+                display: block !important; /* Make it visible */
+                flex-shrink: 1 !important; /* Allow shrinking */
+                min-width: unset !important; /* Remove min-width constraint */
+                max-width: 180px !important; /* Constrain max width for print */
+                margin-left: 10px !important; /* Adjust margin */
+                padding: 5px 8px !important; /* Adjust padding for print */
+                box-shadow: none !important;
+                border: 1px solid #888 !important;
+                print-color-adjust: exact;
+            }
+            .digital-offers-title {
+                font-size: 0.8em !important; /* Smaller font for print */
+                margin-bottom: 2px !important;
+                color: #c8102e !important;
+                text-transform: uppercase !important;
+                print-color-adjust: exact;
+            }
+            .digital-offers-text {
+                font-size: 0.65em !important; /* Smaller font for print */
+                line-height: 1.2 !important;
+                color: #333 !important;
+                print-color-adjust: exact;
+            }
+
+
             table {
                 width: 100%;
                 table-layout: fixed;
@@ -1901,17 +1932,18 @@ const App = () => {
             th {
                 background-color: #f8f8f8;
                 border: 1px solid #888;
-                padding: 6px 4px;
-                font-size: 0.8em;
+                padding: 4px 2px; /* Reduced padding */
+                font-size: 0.75em; /* Smaller font */
                 color: #000;
                 font-weight: 700;
+                text-transform: uppercase;
                 print-color-adjust: exact;
             }
             td {
                 border: 1px solid #888;
                 height: auto; /* Allow height to adapt */
-                min-height: 60px; /* Reduced min height for cells */
-                padding: 4px;
+                min-height: 50px; /* Further reduced min height for cells */
+                padding: 3px; /* Reduced padding */
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid; /* Prevents cell content from splitting */
@@ -1937,8 +1969,8 @@ const App = () => {
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 2px;
-                margin-bottom: 4px;
+                gap: 1px; /* Reduced gap */
+                margin-bottom: 2px; /* Reduced margin */
                 position: relative;
                 width: 100%;
             }
@@ -1953,54 +1985,54 @@ const App = () => {
             .highlight-holiday-cell .date-number-wrapper {
                 background-color: #FFD700 !important;
                 border: 1px solid #DAA520 !important;
-                padding: 2px 4px;
-                border-radius: 4px;
+                padding: 1px 2px; /* Reduced padding */
+                border-radius: 2px;
                 print-color-adjust: exact;
             }
             .date-number {
-                font-size: 1em;
+                font-size: 0.9em; /* Smaller font */
                 color: #000;
                 font-weight: 700;
                 print-color-adjust: exact;
             }
             .weather {
-                font-size: 0.65em;
+                font-size: 0.6em; /* Smaller font */
                 color: #555;
                 print-color-adjust: exact;
             }
             .badge {
-                padding: 3px 5px;
-                font-size: 0.65em;
+                padding: 2px 4px; /* Reduced padding */
+                font-size: 0.6em; /* Smaller font */
                 box-shadow: none;
                 border: 1px solid #999;
                 /* Background and color adjustments handled above */
                 page-break-inside: avoid;
-                margin-bottom: 2px;
+                margin-bottom: 1px; /* Reduced margin */
                 print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
-                padding: 4px;
-                margin-top: 4px;
+                padding: 2px; /* Reduced padding */
+                margin-top: 2px; /* Reduced margin */
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.55em;
-                margin-top: 2px;
+                font-size: 0.5em; /* Smallest font */
+                margin-top: 1px; /* Reduced margin */
                 color: #666;
                 print-color-adjust: exact;
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.55em;
-                padding: 2px 5px;
+                font-size: 0.5em; /* Smallest font */
+                padding: 1px 4px; /* Reduced padding */
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 4px;
+                margin-top: 2px; /* Reduced margin */
                 align-self: flex-start;
                 print-color-adjust: exact;
             }
