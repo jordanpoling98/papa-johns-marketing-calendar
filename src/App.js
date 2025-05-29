@@ -421,14 +421,13 @@ const App = () => {
   };
 
   // Function to open Edit Day modal
-  const openEditDayModal = (dayDate) => {
-    const day = calendar.find(d => d.date === dayDate);
-    if (day) {
-      setEditDayDate(day.date); 
-      setEditDayWeatherHigh(day.weather.high);
-      setEditDayWeekLabel(day.weekLabel || '');
-      setEditDayWeatherCondition(day.weather.condition || ''); // Set initial weather condition
-      setSelectedDayData(day); // Store the entire day object for context
+  const openEditDayModal = (dayData) => { // Changed parameter name to dayData to avoid conflict
+    if (dayData) {
+      setEditDayDate(dayData.date); 
+      setEditDayWeatherHigh(dayData.weather.high);
+      setEditDayWeekLabel(dayData.weekLabel || '');
+      setEditDayWeatherCondition(dayData.weather.condition || ''); // Set initial weather condition
+      setSelectedDayData(dayData); // Store the entire day object for context
       setIsEditDayModalVisible(true);
     }
   };
@@ -741,7 +740,7 @@ const App = () => {
         throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
       }
 
-      const result = await response.json();
+      const result = await result.json();
 
       if (result.candidates && result.candidates.length > 0 &&
           result.candidates[0].content && result.candidates[0].content.parts &&
@@ -947,6 +946,7 @@ const App = () => {
                   onChange={(e) => setSelectedMonthBackground(e.target.value)}
                   className="background-select"
                 >
+                  <option value="">Select Month</option> {/* Added a default empty option */}
                   <option value="june">June</option>
                   <option value="july">July</option>
                   <option value="august">August</option>
@@ -956,7 +956,7 @@ const App = () => {
                   setIsBackgroundSelectionEditing(false);
                   updateSelectedBackgroundInFirestore(selectedMonthBackground, generatedBackgroundUrl);
                 }}>Save</button>
-                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground}>
+                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground || !selectedMonthBackground}> {/* Disable if no month selected */}
                   {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
                 </button>
               </div>
@@ -1557,7 +1557,7 @@ const App = () => {
 
         .background-selection-controls {
             margin-left: 20px;
-            position: relative;
+            position: relative; /* Changed to relative for screen version */
             flex-shrink: 0;
             opacity: 1; /* Always visible on screen */
             transition: opacity 0.2s ease-in-out;
@@ -1565,14 +1565,11 @@ const App = () => {
             padding: 10px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            top: 0; /* Position at the top of the header */
-            right: 0; /* Position to the right of the header */
-            transform: none; /* Remove any previous transforms */
-            display: flex; /* Ensure it's a flex container */
+            z-index: 10; /* Ensure it's above other elements */
+            display: flex; /* Ensure it's a flex container for its children */
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            z-index: 10; /* Ensure it's above other elements */
         }
         .edit-background-button {
             background-color: #f0f0f0;
@@ -1591,8 +1588,7 @@ const App = () => {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            /* Remove absolute positioning here as parent is now explicitly positioned */
-            position: static; 
+            position: static; /* Ensure it's static within its flex parent */
             background-color: transparent; /* No extra background */
             border: none;
             padding: 0;
