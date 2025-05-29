@@ -151,6 +151,8 @@ const App = () => {
   const [digitalOffersText, setDigitalOffersText] = useState(initialDigitalOffersText);
   const [isDigitalOffersEditing, setIsDigitalOffersEditing] = useState(false);
 
+  // New state for weather condition in edit modal
+  const [editDayWeatherCondition, setEditDayWeatherCondition] = useState('');
 
   // State for editing day properties
   const [editDayDate, setEditDayDate] = useState('');
@@ -354,6 +356,7 @@ const App = () => {
       setEditDayDate(day.date); 
       setEditDayWeatherHigh(day.weather.high);
       setEditDayWeekLabel(day.weekLabel || '');
+      setEditDayWeatherCondition(day.weather.condition || ''); // Set initial weather condition
       setSelectedDayData(day); // Store the entire day object for context
       setIsEditDayModalVisible(true);
     }
@@ -507,7 +510,8 @@ const App = () => {
                 ...day,
                 weather: {
                     high: parseInt(editDayWeatherHigh, 10),
-                    icon: getWeatherIcon(parseInt(editDayWeatherHigh, 10))
+                    condition: editDayWeatherCondition, // Use selected condition
+                    icon: getWeatherIcon(editDayWeatherCondition) // Generate icon from condition
                 },
                 weekLabel: editDayWeekLabel.trim() || ''
             };
@@ -521,6 +525,7 @@ const App = () => {
     setEditDayDate('');
     setEditDayWeatherHigh('');
     setEditDayWeekLabel('');
+    setEditDayWeatherCondition(''); // Reset weather condition
     setSelectedDayData(null);
   };
 
@@ -1181,6 +1186,22 @@ const App = () => {
                   onChange={(e) => setEditDayWeatherHigh(e.target.value)}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="editDayWeatherCondition">Weather Condition:</label>
+                <select
+                  id="editDayWeatherCondition"
+                  value={editDayWeatherCondition}
+                  onChange={(e) => setEditDayWeatherCondition(e.target.value)}
+                  required
+                >
+                  <option value="">Select Condition</option>
+                  <option value="Sunny">Sunny ☀️</option>
+                  <option value="Cloudy">Cloudy ☁️</option>
+                  <option value="Rain">Rainy 🌧️</option>
+                  <option value="Partly Sunny">Partly Sunny 🌤️</option>
+                  <option value="Mostly Cloudy">Mostly Cloudy 🌥️</option>
+                </select>
               </div>
               <div className="form-group">
                 <label htmlFor="editDayWeekLabel">Week Label (e.g., P6 Wk3):</label>
