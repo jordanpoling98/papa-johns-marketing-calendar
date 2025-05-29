@@ -65,8 +65,8 @@ const initialCalendarData = [
   // Adding July days and Monthly Offer Block
   { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025
   { date: 2, day: 'Wed', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
-    { id: 'monthly-offer', type: 'monthly-offer', text: 'Monthly Digital Offer', detail: 'Cheddar Pizza & Papa\'s Pairings for $6.99' }
-  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Offer
+    { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
+  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
   // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
   // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
@@ -1062,11 +1062,11 @@ const App = () => {
                         
                         {dayData.promos.map((promo, promoIndex) => (
                           <div className="card" key={promoIndex}>
-                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
+                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
                               {promo.text}
                             </div>
                             {promo.detail && (
-                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
+                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
                                 {promo.detail}
                               </span>
                             )}
@@ -1570,8 +1570,8 @@ const App = () => {
             color: #333;
             border: 1px solid #ccc;
             border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 0.9em;
+            padding: 5px 8px; /* Made smaller */
+            font-size: 0.8em; /* Made smaller */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
         }
