@@ -63,10 +63,11 @@ const initialCalendarData = [
   { date: 29, day: 'Sun', weather: { high: 82, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
   // Adding July days and Monthly Offer Block
-  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025
-  { date: 2, day: 'Wed', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
+  // Modified July 2nd to remove date and weather for pay periods display
+  { date: null, day: 'Wed', weather: null, promos: [
     { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
   ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
+  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025 (moved after July 2nd for now, will re-sort)
   // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
   // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
@@ -2155,7 +2156,7 @@ const App = () => {
                 padding: 0.3rem 0; /* Adjusted padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
-                background-image: url(${getMonthPlaceholderUrl('june')}) !important; /* Force June background for print */
+                background-image: url(${headerBackgroundUrl}) !important; /* Use the actual headerBackgroundUrl for print */
                 background-size: cover !important;
                 background-position: center !important;
                 print-color-adjust: exact;
@@ -2247,6 +2248,14 @@ const App = () => {
             .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
             .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
             .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
+            .badge.pay-periods { /* New style for pay periods badge in print */
+                background-color: #e6f7ff !important; /* Light blue */
+                color: #0056b3 !important; /* Darker blue text */
+                border: 1px solid #99d6ff !important;
+                font-weight: 700 !important;
+                font-size: 0.8em !important;
+                print-color-adjust: exact;
+            }
 
 
             .cell-content {
