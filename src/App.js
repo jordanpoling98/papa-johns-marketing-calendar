@@ -154,6 +154,11 @@ const App = () => {
   // New state for weather condition in edit modal
   const [editDayWeatherCondition, setEditDayWeatherCondition] = useState('');
 
+  // State for editing day properties
+  const [editDayDate, setEditDayDate] = useState('');
+  const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
+  const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
+
   // State for dynamic background selection
   const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
   const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
@@ -1787,10 +1792,6 @@ const App = () => {
         .digital-offers-box:hover .digital-offers-edit-icon {
             opacity: 1;
         }
-        /* Show background selection controls on header hover */
-        .calendar-header:hover .background-selection-controls {
-            opacity: 1;
-        }
 
 
         /* Individual icon hover for slight scale/background change */
@@ -1973,7 +1974,10 @@ const App = () => {
                 font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
-            .modal-overlay,
+            .modal-overlay { /* Hide modals */
+                display: none !important;
+            }
+            /* Explicitly hide all icons that should not be in print */
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -1988,9 +1992,9 @@ const App = () => {
             /* Ensure the header icons (sun and graduation cap) are visible */
             .header-icon {
                 display: inline-block !important; /* Make visible */
-                width: 25px !important; /* Adjust size for print */
-                height: 25px !important;
-                margin: 0 5px !important; /* Adjust spacing */
+                width: 30px !important; /* Increased size for print */
+                height: 30px !important;
+                margin: 0 8px !important; /* Adjust spacing */
                 vertical-align: middle !important;
                 print-color-adjust: exact;
             }
@@ -2002,7 +2006,7 @@ const App = () => {
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 15px !important; 
+                height: 18px !important; 
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -2022,7 +2026,7 @@ const App = () => {
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 1px solid #888;
-                padding: 0.2rem 0; /* Reduced padding */
+                padding: 0.3rem 0; /* Adjusted padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
                 background-image: url(${getMonthBackgroundUrl('june')}) !important; /* Force June background for print */
@@ -2032,11 +2036,11 @@ const App = () => {
                 flex-wrap: nowrap !important; /* Prevent wrapping in header for print */
                 justify-content: space-between !important; /* Distribute items */
                 align-items: center !important;
-                padding-left: 5px !important; /* Add some padding */
-                padding-right: 5px !important;
+                padding-left: 8px !important; /* Add some padding */
+                padding-right: 8px !important;
             }
             h1 {
-                font-size: 1.4em !important; /* Increased font size for title */
+                font-size: 1.6em !important; /* Increased font size for title */
                 font-weight: 900 !important; /* Make bolder */
                 margin-bottom: 0.05em !important; /* Reduced margin */
                 color: #000 !important;
@@ -2049,12 +2053,12 @@ const App = () => {
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 4px 6px; /* Reduced padding */
+                padding: 5px 8px; /* Adjusted padding */
                 margin-bottom: 5px; /* Reduced margin */
                 background-color: #c0c0c0; /* Slightly darker grey for banner in print */
                 color: #000;
                 border-bottom: 1px solid #888;
-                font-size: 0.9em !important; /* Slightly larger font for banner */
+                font-size: 1em !important; /* Increased font size for banner */
                 font-weight: 700 !important; /* Make bolder */
                 print-color-adjust: exact;
             }
@@ -2063,24 +2067,24 @@ const App = () => {
                 display: block !important; /* Make it visible */
                 flex-shrink: 1 !important; /* Allow shrinking */
                 min-width: unset !important; /* Remove min-width constraint */
-                max-width: 180px !important; /* Constrain max width for print */
-                margin-left: 10px !important; /* Adjust margin */
-                padding: 5px 8px !important; /* Adjust padding for print */
+                max-width: 200px !important; /* Constrain max width for print */
+                margin-left: 15px !important; /* Adjust margin */
+                padding: 8px 12px !important; /* Adjust padding for print */
                 box-shadow: none !important;
                 border: 1px solid #888 !important;
                 print-color-adjust: exact;
             }
             .digital-offers-title {
-                font-size: 0.9em !important; /* Smaller font for print */
-                font-weight: 800 !important; /* Make bolder */
-                margin-bottom: 2px !important;
+                font-size: 1.1em !important; /* Increased font size for print */
+                font-weight: 900 !important; /* Make bolder */
+                margin-bottom: 3px !important;
                 color: #c8102e !important;
                 text-transform: uppercase !important;
                 print-color-adjust: exact;
             }
             .digital-offers-text {
-                font-size: 0.75em !important; /* Slightly larger font for print */
-                line-height: 1.2 !important;
+                font-size: 0.85em !important; /* Increased font size for print */
+                line-height: 1.3 !important;
                 color: #333 !important;
                 print-color-adjust: exact;
             }
@@ -2094,8 +2098,8 @@ const App = () => {
             th {
                 background-color: #f8f8f8;
                 border: 1px solid #888;
-                padding: 4px 2px; /* Reduced padding */
-                font-size: 0.85em !important; /* Larger font */
+                padding: 5px 3px; /* Adjusted padding */
+                font-size: 0.95em !important; /* Increased font size */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
@@ -2104,8 +2108,8 @@ const App = () => {
             td {
                 border: 1px solid #888;
                 height: auto; /* Allow height to adapt */
-                min-height: 55px; /* Adjusted min height for cells */
-                padding: 3px; /* Reduced padding */
+                min-height: 65px; /* Adjusted min height for cells */
+                padding: 4px; /* Adjusted padding */
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid; /* Prevents cell content from splitting */
@@ -2132,7 +2136,7 @@ const App = () => {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 1px; /* Reduced gap */
-                margin-bottom: 2px; /* Reduced margin */
+                margin-bottom: 3px; /* Reduced margin */
                 position: relative;
                 width: 100%;
             }
@@ -2152,38 +2156,38 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .date-number {
-                font-size: 0.9em; /* Smaller font */
+                font-size: 1em; /* Increased font size */
                 color: #000;
                 font-weight: 700;
                 print-color-adjust: exact;
             }
             .weather {
-                font-size: 0.75em !important; /* Increased weather font size */
+                font-size: 0.85em !important; /* Increased weather font size */
                 font-weight: 700 !important; /* Make bolder */
                 color: #555;
                 print-color-adjust: exact;
             }
             .badge {
-                padding: 2px 4px; /* Reduced padding */
-                font-size: 0.6em; /* Smaller font */
+                padding: 3px 5px; /* Adjusted padding */
+                font-size: 0.7em !important; /* Increased font size */
                 box-shadow: none;
                 border: 1px solid #999;
                 /* Background and color adjustments handled above */
                 page-break-inside: avoid;
-                margin-bottom: 1px; /* Reduced margin */
+                margin-bottom: 2px; /* Adjusted margin */
                 print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
-                padding: 2px; /* Reduced padding */
-                margin-top: 2px; /* Reduced margin */
+                padding: 3px; /* Adjusted padding */
+                margin-top: 3px; /* Adjusted margin */
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.55em !important; /* Slightly larger promo detail */
+                font-size: 0.6em !important; /* Increased promo detail font size */
                 margin-top: 1px; /* Reduced margin */
                 color: #666;
                 print-color-adjust: exact;
@@ -2191,11 +2195,11 @@ const App = () => {
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.55em; /* Smallest font */
-                padding: 1px 4px; /* Reduced padding */
+                font-size: 0.6em !important; /* Increased font size */
+                padding: 2px 5px; /* Adjusted padding */
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 2px; /* Reduced margin */
+                margin-top: 3px; /* Adjusted margin */
                 align-self: flex-start;
                 print-color-adjust: exact;
             }
