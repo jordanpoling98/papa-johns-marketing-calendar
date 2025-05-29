@@ -644,7 +644,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayData) { // BUG: This should be day.date === dayDate
+            if (day.date === dayDate) { // Fix: Changed dayData to dayDate
                 return {
                     ...day,
                     promos: [],
@@ -747,7 +747,7 @@ const App = () => {
         throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
       }
 
-      const result = await result.json();
+      const result = await response.json(); // Corrected: was `result.json()`
 
       if (result.candidates && result.candidates.length > 0 &&
           result.candidates[0].content && result.candidates[0].content.parts &&
@@ -994,7 +994,7 @@ const App = () => {
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
                 {week.map((dayData, dayIndex) => (
-                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
+                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''} ${dayData.date === null ? 'info-only-cell' : ''}`}> {/* Added info-only-cell class */}
                     {dayData ? (
                       <div className="cell-content">
                         <div className="date-weather-group">
