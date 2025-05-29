@@ -168,6 +168,8 @@ const App = () => {
 
   // Gemini API Key
   const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Using REACT_APP_ prefix for Vercel/local
+  // Imagen API Key (assuming it's also set as an environment variable)
+  const IMAGEN_API_KEY = process.env.REACT_APP_IMAGEN_API_KEY || ""; // Vercel injects if empty string
 
   // Firebase config (reads from process.env.REACT_APP_ prefixed variables)
   const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) : {};
@@ -751,7 +753,7 @@ const App = () => {
     const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent the month of ${month}. Focus on vibrant colors and abstract patterns suitable for a header background. Example: "Abstract summer beach colors with subtle wave patterns" for July.`;
 
     const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
-    const apiKey = ""; // Canvas will automatically provide the API key at runtime
+    const apiKey = IMAGEN_API_KEY; // Use the IMAGEN_API_KEY from environment variables
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
@@ -2095,7 +2097,7 @@ const App = () => {
                 padding: 0.3rem 0; /* Adjusted padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
-                background-image: url(${getMonthBackgroundUrl('june')}) !important; /* Force June background for print */
+                background-image: url(${getMonthPlaceholderUrl('june')}) !important; /* Force June background for print */
                 background-size: cover !important;
                 background-position: center !important;
                 print-color-adjust: exact;
