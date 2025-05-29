@@ -644,13 +644,13 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { 
+            if (day.date === dayData) { // BUG: This should be day.date === dayDate
                 return {
                     ...day,
                     promos: [],
                     holiday: null,
                     specialDay: '',
-                    specialText: '',
+                    selectedDayData: null, // Clear selected day data
                     weather: { high: null, icon: '' }, // Clear weather
                     weekLabel: '' // Clear week label
                 };
@@ -792,14 +792,14 @@ const App = () => {
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
         // Fallback to placeholder if image generation fails
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
         updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
       // Fallback to placeholder if API call fails
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
       updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
     } finally {
       setIsGeneratingBackground(false);
@@ -998,20 +998,24 @@ const App = () => {
                     {dayData ? (
                       <div className="cell-content">
                         <div className="date-weather-group">
-                          <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
-                            <div className="date-number">
-                              {dayData.date}
+                          {dayData.date !== null && ( // Only render date if not null
+                            <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
+                              <div className="date-number">
+                                {dayData.date}
+                              </div>
                             </div>
-                          </div>
-                          <div className="weather">
-                            {dayData.weather.icon} {dayData.weather.high}°
-                          </div>
+                          )}
+                          {dayData.weather !== null && ( // Only render weather if not null
+                            <div className="weather">
+                              {dayData.weather.icon} {dayData.weather.high}°
+                            </div>
+                          )}
                           {/* Edit/Delete Day Icons */}
                           <span
                             className="edit-icon day-edit-icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openEditDayModal(dayData.date);
+                              openEditDayModal(dayData); // Pass the entire dayData object
                             }}
                             title="Edit Day"
                           >
