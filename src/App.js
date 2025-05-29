@@ -166,14 +166,31 @@ const App = () => {
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
 
 
-  // Gemini API Key
-  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Using REACT_APP_ prefix for Vercel/local
-  // Imagen API Key (assuming it's also set as an environment variable)
-  const IMAGEN_API_KEY = process.env.REACT_APP_IMAGEN_API_KEY || ""; // Vercel injects if empty string
+  // Safely access environment variables
+  const getEnv = (key) => {
+    // Check if process and process.env are defined before accessing
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key];
+    }
+    console.warn(`Environment variable ${key} not found via process.env. Falling back.`);
+    return ''; // Return empty string or a safe default
+  };
 
-  // Firebase config (reads from process.env.REACT_APP_ prefixed variables)
-  const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) : {};
-  const appId = process.env.REACT_APP_APP_ID || 'default-app-id';
+  const GEMINI_API_KEY = getEnv('REACT_APP_GEMINI_API_KEY');
+  const IMAGEN_API_KEY = getEnv('REACT_APP_IMAGEN_API_KEY') || ""; 
+
+  let firebaseConfig = {};
+  const firebaseConfigString = getEnv('REACT_APP_FIREBASE_CONFIG');
+  try {
+    if (firebaseConfigString) {
+      firebaseConfig = JSON.parse(firebaseConfigString);
+    }
+  } catch (e) {
+    console.error("Error parsing REACT_APP_FIREBASE_CONFIG:", e);
+    // Note: showAlert here would cause infinite loop if Firebase init fails
+  }
+
+  const appId = getEnv('REACT_APP_APP_ID') || 'default-app-id';
 
 
   // Initialize Firebase and set up authentication
@@ -217,7 +234,7 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, [firebaseConfig]); // Re-run if config changes (though it shouldn't dynamically)
+  }, [JSON.stringify(firebaseConfig)]); // Re-run if config changes (stringify for deep comparison)
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
@@ -270,18 +287,14 @@ const App = () => {
           if (docSnap.data().generatedUrl) {
             setGeneratedBackgroundUrl(docSnap.data().generatedUrl);
           } else {
-            // Fallback to placeholder if no generated URL
-            setGeneratedBackgroundUrl(getMonthPlaceholderUrl(docSnap.data().month));
+            // If month is saved but no generated URL, generate one now
+            generateImageBackground(docSnap.data().month); // Trigger generation if missing
           }
         } else {
-          console.log("No background setting found, defaulting to June.");
+          console.log("No background setting found, defaulting to June and generating image.");
           const defaultMonth = 'june';
-          setDoc(backgroundDocRef, { month: defaultMonth, generatedUrl: getMonthPlaceholderUrl(defaultMonth) })
-            .then(() => {
-              setSelectedMonthBackground(defaultMonth);
-              setGeneratedBackgroundUrl(getMonthPlaceholderUrl(defaultMonth));
-            })
-            .catch(error => console.error("Error setting initial background document:", error));
+          // Immediately try to generate image if no setting exists
+          generateImageBackground(defaultMonth); 
         }
       }, (error) => {
         console.error("Error fetching background setting:", error);
@@ -341,7 +354,8 @@ const App = () => {
         if (generatedUrl) {
           dataToSave.generatedUrl = generatedUrl;
         } else {
-          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); // Save placeholder if no generated URL
+          // If no generated URL provided, fallback to placeholder and save it
+          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); 
         }
         await setDoc(backgroundDocRef, dataToSave);
         console.log("Background month and URL saved to Firestore!");
@@ -951,7 +965,7 @@ const App = () => {
             {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
             {!generatedBackgroundUrl && !isGeneratingBackground && (
               <div className="background-guide-message">
-                Hover over header to edit. Click "Edit Background" to select month and generate image.
+                Click "Edit Background" to select month and generate image.
               </div>
             )}
           </div>
@@ -1459,6 +1473,7 @@ const App = () => {
           border-radius: 12px 12px 0 0;
           flex-wrap: wrap; /* Allow items to wrap on smaller screens */
           gap: 15px; /* Space between header elements */
+          background-repeat: no-repeat; /* Ensure background doesn't repeat */
         }
 
         .digital-offers-box {
@@ -1541,9 +1556,8 @@ const App = () => {
             margin-left: 20px;
             position: relative;
             flex-shrink: 0;
-            /* Make visible by default on screen */
-            opacity: 1; /* Changed from 0 to 1 */
-            transition: opacity 0.2s ease-in-out; /* Keep transition */
+            opacity: 1; /* Always visible on screen */
+            transition: opacity 0.2s ease-in-out;
         }
         .edit-background-button {
             background-color: #f0f0f0;
@@ -1857,8 +1871,7 @@ const App = () => {
         .card .generate-promo-star,
         .title-edit-icon, /* Title edit icon also hidden by default */
         .banner-edit-icon, /* Banner edit icon also hidden by default */
-        .digital-offers-edit-icon, /* Digital offers edit icon hidden by default */
-        .background-selection-controls { /* Hide background selection controls */
+        .digital-offers-edit-icon { /* Digital offers edit icon hidden by default */
           opacity: 0; 
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
@@ -2267,7 +2280,7 @@ const App = () => {
                 padding: 3px 5px; /* Adjusted padding */
                 font-size: 0.8em !important; /* Increased font size */
                 box-shadow: none;
-                border: 1px solid #999;
+                border: 1px solid #991;
                 /* Background and color adjustments handled above */
                 page-break-inside: avoid;
                 margin-bottom: 2px; /* Adjusted margin */
