@@ -23,7 +23,7 @@ const initialCalendarData = [
     { id: 'promo2', type: 'general', text: 'Shaq-a-Roni becomes permanent menu item', detail: '$16.99 SHAQ / $18.99 w/ 2L' }
   ], specialDay: 'special-day', weekLabel: 'P6 Wk3', holiday: null },
   { date: 3, day: 'Tue', weather: { high: 63, condition: 'Cloudy', icon: getWeatherIcon('Cloudy') }, promos: [
-    { id: 'promo3', type: 'two-dollar', text: '� BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
+    { id: 'promo3', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
   { date: 4, day: 'Wed', weather: { high: 68, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo4', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
@@ -1679,6 +1679,16 @@ const App = () => {
         .empty-cell {
             background-color: #f9f9f9 !important; /* Lighter background for empty cells */
         }
+        /* Style for cells with only info (no date/weather) */
+        .info-only-cell .cell-content {
+            justify-content: center; /* Center content vertically */
+            align-items: center; /* Center content horizontally */
+            height: 100%; /* Ensure it takes full height */
+        }
+        .info-only-cell .date-weather-group {
+            display: none; /* Hide date/weather group for info-only cells */
+        }
+
 
         .cell-content {
             display: flex;
@@ -1779,6 +1789,18 @@ const App = () => {
         .badge.monthly-offer .promo-detail { /* Make detail white for this badge */
             color: #fff;
             font-weight: 600;
+        }
+        /* New style for pay periods badge */
+        .badge.pay-periods {
+            background-color: #e6f7ff; /* Light blue */
+            color: #0056b3; /* Darker blue text */
+            border: 1px solid #99d6ff;
+            font-weight: 600;
+            font-size: 0.85em;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-top: 0; /* Remove top margin if it's the only content */
+            line-height: 1.3;
         }
 
 
@@ -2435,4 +2457,3 @@ const App = () => {
 };
 
 export default App;
-�
