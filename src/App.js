@@ -949,6 +949,11 @@ const App = () => {
               </button>
             )}
             {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
+            {!generatedBackgroundUrl && !isGeneratingBackground && (
+              <div className="background-guide-message">
+                Hover over header to edit. Click "Edit Background" to select month and generate image.
+              </div>
+            )}
           </div>
         </div>
         {isBannerEditing ? (
@@ -1536,6 +1541,9 @@ const App = () => {
             margin-left: 20px;
             position: relative;
             flex-shrink: 0;
+            /* Make visible by default on screen */
+            opacity: 1; /* Changed from 0 to 1 */
+            transition: opacity 0.2s ease-in-out; /* Keep transition */
         }
         .edit-background-button {
             background-color: #f0f0f0;
@@ -1582,6 +1590,25 @@ const App = () => {
         }
         .background-save-btn:hover {
             background-color: #a00d27;
+        }
+        .background-loading-indicator {
+            text-align: center;
+            font-style: italic;
+            color: #777;
+            margin-top: 10px;
+        }
+        .background-loading-indicator::after {
+            content: '...';
+            animation: loading-dots 1s infinite;
+        }
+        .background-guide-message {
+            font-size: 0.8em;
+            color: #555;
+            text-align: center;
+            margin-top: 10px;
+            padding: 5px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
         }
 
 
