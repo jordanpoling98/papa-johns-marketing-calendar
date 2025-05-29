@@ -159,8 +159,8 @@ const App = () => {
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
-  // State for dynamic background selection
-  const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
+  // State for dynamic background prompt and generated URL
+  const [backgroundPrompt, setBackgroundPrompt] = useState('June theme: vibrant summer beach colors with subtle wave patterns'); // Default prompt
   const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
   const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
@@ -281,20 +281,26 @@ const App = () => {
       });
 
       const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().month) {
-          setSelectedMonthBackground(docSnap.data().month);
-          // If a generated URL is saved, use it
-          if (docSnap.data().generatedUrl) {
-            setGeneratedBackgroundUrl(docSnap.data().generatedUrl);
-          } else {
-            // If month is saved but no generated URL, generate one now
-            generateImageBackground(docSnap.data().month); // Trigger generation if missing
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.prompt) { // Check for saved prompt
+            setBackgroundPrompt(data.prompt);
+          }
+          if (data.generatedUrl) { // Check for saved generated URL
+            setGeneratedBackgroundUrl(data.generatedUrl);
+          } else if (data.prompt) { // If prompt exists but no URL, try to generate
+            generateImageBackground(data.prompt);
+          } else { // No data, set default prompt and generate
+            console.log("No background setting found, defaulting and generating image.");
+            const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
+            setBackgroundPrompt(defaultPrompt);
+            generateImageBackground(defaultPrompt); 
           }
         } else {
-          console.log("No background setting found, defaulting to June and generating image.");
-          const defaultMonth = 'june';
-          // Immediately try to generate image if no setting exists
-          generateImageBackground(defaultMonth); 
+          console.log("No background setting found, defaulting and generating image.");
+          const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
+          setBackgroundPrompt(defaultPrompt);
+          generateImageBackground(defaultPrompt); 
         }
       }, (error) => {
         console.error("Error fetching background setting:", error);
@@ -346,21 +352,21 @@ const App = () => {
   };
 
   // Function to update selected background in Firestore
-  const updateSelectedBackgroundInFirestore = async (month, generatedUrl = null) => {
+  const updateSelectedBackgroundInFirestore = async (prompt, generatedUrl = null) => {
     if (db && userId) {
       try {
         const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-        const dataToSave = { month: month };
+        const dataToSave = { prompt: prompt };
         if (generatedUrl) {
           dataToSave.generatedUrl = generatedUrl;
         } else {
           // If no generated URL provided, fallback to placeholder and save it
-          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); 
+          dataToSave.generatedUrl = getMonthPlaceholderUrl(prompt); // Use prompt for placeholder text
         }
         await setDoc(backgroundDocRef, dataToSave);
-        console.log("Background month and URL saved to Firestore!");
+        console.log("Background prompt and URL saved to Firestore!");
       } catch (error) {
-        console.error("Error saving background month to Firestore:", error);
+        console.error("Error saving background setting to Firestore:", error);
         showAlert("Failed to save background setting. Please try again.");
       }
     } else {
@@ -759,11 +765,11 @@ const App = () => {
   };
 
   // Function to generate image using Imagen API
-  const generateImageBackground = async (month) => {
+  const generateImageBackground = async (promptText) => { // Changed parameter to promptText
     setIsGeneratingBackground(true);
     setGeneratedBackgroundUrl(''); // Clear previous image
 
-    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent the month of ${month}. Focus on vibrant colors and abstract patterns suitable for a header background. Example: "Abstract summer beach colors with subtle wave patterns" for July.`;
+    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent: "${promptText}". Focus on vibrant colors and abstract patterns suitable for a header background.`;
 
     const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
     const apiKey = IMAGEN_API_KEY; // Use the IMAGEN_API_KEY from environment variables
@@ -780,20 +786,20 @@ const App = () => {
       if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
         const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
         setGeneratedBackgroundUrl(imageUrl);
-        // Save the generated URL to Firestore
-        updateSelectedBackgroundInFirestore(month, imageUrl);
+        // Save the generated URL and the prompt to Firestore
+        updateSelectedBackgroundInFirestore(promptText, imageUrl); // Pass promptText
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
         // Fallback to placeholder if image generation fails
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); 
-        updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+        updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
       // Fallback to placeholder if API call fails
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); 
-      updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+      updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
     } finally {
       setIsGeneratingBackground(false);
     }
@@ -829,22 +835,14 @@ const App = () => {
   const weeks = chunkIntoWeeks(calendar);
 
   // Function to get background image URL based on month (placeholder for now)
-  const getMonthPlaceholderUrl = (month) => {
-    switch (month) {
-      case 'june':
-        return 'https://placehold.co/1200x300/e0f2f7/005080?text=June+Theme+-+Summer+Vibes'; // Light blue/cyan for June
-      case 'july':
-        return 'https://placehold.co/1200x300/ffe0b2/e65100?text=July+Theme+-+Warm+Summer'; // Orange/peach for July
-      case 'august':
-        return 'https://placehold.co/1200x300/dcedc8/33691e?text=August+Theme+-+Green+Harvest'; // Light green for August
-      default:
-        return 'https://placehold.co/1200x300/e0e0e0/555555?text=Default+Background'; // Default grey
-    }
+  const getMonthPlaceholderUrl = (promptText) => { // Changed parameter to promptText
+    // This is a fallback, so a generic placeholder is fine, but can use prompt for text
+    return `https://placehold.co/1200x300/e0e0e0/555555?text=${encodeURIComponent(promptText || 'Default Background')}`;
   };
 
   // Use either generated URL or fallback to placeholder
   // This value is pulled from Firestore first, then determined here.
-  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
+  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(backgroundPrompt);
 
 
   // Show loading indicator if Firestore is still loading data
@@ -941,22 +939,18 @@ const App = () => {
           <div className="background-selection-controls">
             {isBackgroundSelectionEditing ? (
               <div className="background-select-container">
-                <select
-                  value={selectedMonthBackground}
-                  onChange={(e) => setSelectedMonthBackground(e.target.value)}
+                <textarea
+                  value={backgroundPrompt}
+                  onChange={(e) => setBackgroundPrompt(e.target.value)}
                   className="background-select"
-                >
-                  <option value="">Select Month</option> {/* Added a default empty option */}
-                  <option value="june">June</option>
-                  <option value="july">July</option>
-                  <option value="august">August</option>
-                  {/* Add more months as needed */}
-                </select>
+                  rows="3"
+                  placeholder="e.g., vibrant summer beach colors with subtle wave patterns"
+                ></textarea>
                 <button className="background-save-btn" onClick={() => {
                   setIsBackgroundSelectionEditing(false);
-                  updateSelectedBackgroundInFirestore(selectedMonthBackground, generatedBackgroundUrl);
-                }}>Save</button>
-                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground || !selectedMonthBackground}> {/* Disable if no month selected */}
+                  updateSelectedBackgroundInFirestore(backgroundPrompt, generatedBackgroundUrl);
+                }}>Save Prompt</button>
+                <button className="generate-background-btn" onClick={() => generateImageBackground(backgroundPrompt)} disabled={isGeneratingBackground || !backgroundPrompt.trim()}> {/* Disable if no prompt */}
                   {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
                 </button>
               </div>
@@ -968,7 +962,7 @@ const App = () => {
             {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
             {!generatedBackgroundUrl && !isGeneratingBackground && (
               <div className="background-guide-message">
-                Click "Edit Background" to select month and generate image.
+                No background image. Click "Edit Background" to describe and generate one.
               </div>
             )}
           </div>
