@@ -948,6 +948,7 @@ const App = () => {
                 Edit Background ✨
               </button>
             )}
+            {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
           </div>
         </div>
         {isBannerEditing ? (
