@@ -162,10 +162,12 @@ const App = () => {
   // State for dynamic background selection
   const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
   const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
+  const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
+  const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
 
 
   // Gemini API Key
-  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY; // Using REACT_APP_ prefix for Vercel/local
 
   // Firebase config (reads from process.env.REACT_APP_ prefixed variables)
   const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG) : {};
@@ -262,10 +264,21 @@ const App = () => {
       const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
         if (docSnap.exists() && docSnap.data().month) {
           setSelectedMonthBackground(docSnap.data().month);
+          // If a generated URL is saved, use it
+          if (docSnap.data().generatedUrl) {
+            setGeneratedBackgroundUrl(docSnap.data().generatedUrl);
+          } else {
+            // Fallback to placeholder if no generated URL
+            setGeneratedBackgroundUrl(getMonthPlaceholderUrl(docSnap.data().month));
+          }
         } else {
           console.log("No background setting found, defaulting to June.");
-          setDoc(backgroundDocRef, { month: 'june' })
-            .then(() => setSelectedMonthBackground('june'))
+          const defaultMonth = 'june';
+          setDoc(backgroundDocRef, { month: defaultMonth, generatedUrl: getMonthPlaceholderUrl(defaultMonth) })
+            .then(() => {
+              setSelectedMonthBackground(defaultMonth);
+              setGeneratedBackgroundUrl(getMonthPlaceholderUrl(defaultMonth));
+            })
             .catch(error => console.error("Error setting initial background document:", error));
         }
       }, (error) => {
@@ -318,12 +331,18 @@ const App = () => {
   };
 
   // Function to update selected background in Firestore
-  const updateSelectedBackgroundInFirestore = async (month) => {
+  const updateSelectedBackgroundInFirestore = async (month, generatedUrl = null) => {
     if (db && userId) {
       try {
         const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-        await setDoc(backgroundDocRef, { month: month });
-        console.log("Background month saved to Firestore!");
+        const dataToSave = { month: month };
+        if (generatedUrl) {
+          dataToSave.generatedUrl = generatedUrl;
+        } else {
+          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); // Save placeholder if no generated URL
+        }
+        await setDoc(backgroundDocRef, dataToSave);
+        console.log("Background month and URL saved to Firestore!");
       } catch (error) {
         console.error("Error saving background month to Firestore:", error);
         showAlert("Failed to save background setting. Please try again.");
@@ -724,6 +743,45 @@ const App = () => {
     }
   };
 
+  // Function to generate image using Imagen API
+  const generateImageBackground = async (month) => {
+    setIsGeneratingBackground(true);
+    setGeneratedBackgroundUrl(''); // Clear previous image
+
+    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent the month of ${month}. Focus on vibrant colors and abstract patterns suitable for a header background. Example: "Abstract summer beach colors with subtle wave patterns" for July.`;
+
+    const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
+    const apiKey = ""; // Canvas will automatically provide the API key at runtime
+
+    try {
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+      const response = await fetch(apiUrl, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             });
+      const result = await response.json();
+
+      if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+        setGeneratedBackgroundUrl(imageUrl);
+        // Save the generated URL to Firestore
+        updateSelectedBackgroundInFirestore(month, imageUrl);
+      } else {
+        showAlert('Could not generate background image. Unexpected API response.');
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+        updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      showAlert(`Error generating background: ${error.message}.`);
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+      updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+    } finally {
+      setIsGeneratingBackground(false);
+    }
+  };
+
 
   // Helper to chunk the calendar data into weeks for table rendering
   const chunkIntoWeeks = (data) => {
@@ -753,8 +811,8 @@ const App = () => {
 
   const weeks = chunkIntoWeeks(calendar);
 
-  // Function to get background image URL based on month
-  const getMonthBackgroundUrl = (month) => {
+  // Function to get background image URL based on month (placeholder for now)
+  const getMonthPlaceholderUrl = (month) => {
     switch (month) {
       case 'june':
         return 'https://placehold.co/1200x300/e0f2f7/005080?text=June+Theme+-+Summer+Vibes'; // Light blue/cyan for June
@@ -766,6 +824,10 @@ const App = () => {
         return 'https://placehold.co/1200x300/e0e0e0/555555?text=Default+Background'; // Default grey
     }
   };
+
+  // Use either generated URL or placeholder
+  const currentBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
+
 
   // Show loading indicator if Firestore is still loading data
   if (isFirestoreLoading) {
@@ -816,7 +878,7 @@ const App = () => {
       </div>
 
       <div className="calendar-container">
-        <div className="calendar-header" style={{ backgroundImage: `url(${getMonthBackgroundUrl(selectedMonthBackground)})` }}>
+        <div className="calendar-header" style={{ backgroundImage: `url(${currentBackgroundUrl})` }}>
           {/* Removed header icons (graduation cap and sun) from screen display */}
           {isTitleEditing ? (
             <div className="title-edit-container">
@@ -873,8 +935,11 @@ const App = () => {
                 </select>
                 <button className="background-save-btn" onClick={() => {
                   setIsBackgroundSelectionEditing(false);
-                  updateSelectedBackgroundInFirestore(selectedMonthBackground);
+                  updateSelectedBackgroundInFirestore(selectedMonthBackground, generatedBackgroundUrl);
                 }}>Save</button>
+                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground}>
+                  {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
+                </button>
               </div>
             ) : (
               <button className="edit-background-button" onClick={() => setIsBackgroundSelectionEditing(true)} title="Edit Background">
