@@ -817,6 +817,7 @@ const App = () => {
 
       <div className="calendar-container">
         <div className="calendar-header" style={{ backgroundImage: `url(${getMonthBackgroundUrl(selectedMonthBackground)})` }}>
+          {/* Removed header icons (graduation cap and sun) from screen display */}
           {isTitleEditing ? (
             <div className="title-edit-container">
                 <input
@@ -2040,7 +2041,7 @@ const App = () => {
                 padding-right: 8px !important;
             }
             h1 {
-                font-size: 1.6em !important; /* Increased font size for title */
+                font-size: 1.8em !important; /* FURTHER Increased font size for title */
                 font-weight: 900 !important; /* Make bolder */
                 margin-bottom: 0.05em !important; /* Reduced margin */
                 color: #000 !important;
@@ -2075,7 +2076,7 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .digital-offers-title {
-                font-size: 1.1em !important; /* Increased font size for print */
+                font-size: 1.2em !important; /* Increased font size for print */
                 font-weight: 900 !important; /* Make bolder */
                 margin-bottom: 3px !important;
                 color: #c8102e !important;
@@ -2083,7 +2084,7 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .digital-offers-text {
-                font-size: 0.85em !important; /* Increased font size for print */
+                font-size: 0.9em !important; /* Increased font size for print */
                 line-height: 1.3 !important;
                 color: #333 !important;
                 print-color-adjust: exact;
@@ -2099,7 +2100,7 @@ const App = () => {
                 background-color: #f8f8f8;
                 border: 1px solid #888;
                 padding: 5px 3px; /* Adjusted padding */
-                font-size: 0.95em !important; /* Increased font size */
+                font-size: 1em !important; /* Increased font size */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
@@ -2156,20 +2157,20 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .date-number {
-                font-size: 1em; /* Increased font size */
+                font-size: 1.1em !important; /* Increased font size */
                 color: #000;
                 font-weight: 700;
                 print-color-adjust: exact;
             }
             .weather {
-                font-size: 0.85em !important; /* Increased weather font size */
+                font-size: 0.95em !important; /* Increased weather font size */
                 font-weight: 700 !important; /* Make bolder */
                 color: #555;
                 print-color-adjust: exact;
             }
             .badge {
                 padding: 3px 5px; /* Adjusted padding */
-                font-size: 0.7em !important; /* Increased font size */
+                font-size: 0.8em !important; /* Increased font size */
                 box-shadow: none;
                 border: 1px solid #999;
                 /* Background and color adjustments handled above */
@@ -2187,7 +2188,7 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.6em !important; /* Increased promo detail font size */
+                font-size: 0.7em !important; /* Increased promo detail font size */
                 margin-top: 1px; /* Reduced margin */
                 color: #666;
                 print-color-adjust: exact;
@@ -2195,7 +2196,7 @@ const App = () => {
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.6em !important; /* Increased font size */
+                font-size: 0.7em !important; /* Increased font size */
                 padding: 2px 5px; /* Adjusted padding */
                 box-shadow: none;
                 border: 1px solid #999;
