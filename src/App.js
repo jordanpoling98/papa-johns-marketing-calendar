@@ -172,7 +172,7 @@ const App = () => {
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
-    console.warn(`Environment variable ${key} not found via process.env. Falling back.`);
+    // console.warn(`Environment variable ${key} not found via process.env. Falling back.`); // Suppress warn for this specific issue
     return ''; // Return empty string or a safe default
   };
 
@@ -785,13 +785,15 @@ const App = () => {
         updateSelectedBackgroundInFirestore(month, imageUrl);
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+        // Fallback to placeholder if image generation fails
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); 
         updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+      // Fallback to placeholder if API call fails
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); 
       updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
     } finally {
       setIsGeneratingBackground(false);
@@ -841,8 +843,9 @@ const App = () => {
     }
   };
 
-  // Use either generated URL or placeholder
-  const currentBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
+  // Use either generated URL or fallback to placeholder
+  // This value is pulled from Firestore first, then determined here.
+  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
 
 
   // Show loading indicator if Firestore is still loading data
@@ -894,7 +897,7 @@ const App = () => {
       </div>
 
       <div className="calendar-container">
-        <div className="calendar-header" style={{ backgroundImage: `url(${currentBackgroundUrl})` }}>
+        <div className="calendar-header" style={{ backgroundImage: `url(${headerBackgroundUrl})`, backgroundColor: '#e0f2f7' /* Fallback if image fails */ }}>
           {/* Removed header icons (graduation cap and sun) from screen display */}
           {isTitleEditing ? (
             <div className="title-edit-container">
@@ -1558,6 +1561,18 @@ const App = () => {
             flex-shrink: 0;
             opacity: 1; /* Always visible on screen */
             transition: opacity 0.2s ease-in-out;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            top: 0; /* Position at the top of the header */
+            right: 0; /* Position to the right of the header */
+            transform: none; /* Remove any previous transforms */
+            display: flex; /* Ensure it's a flex container */
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 10; /* Ensure it's above other elements */
         }
         .edit-background-button {
             background-color: #f0f0f0;
@@ -1576,15 +1591,13 @@ const App = () => {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            position: absolute;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            z-index: 10;
-            top: 0;
-            right: 0;
+            /* Remove absolute positioning here as parent is now explicitly positioned */
+            position: static; 
+            background-color: transparent; /* No extra background */
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            z-index: auto;
         }
         .background-select {
             padding: 8px;
@@ -1592,7 +1605,20 @@ const App = () => {
             border-radius: 5px;
             font-size: 0.9em;
         }
-        .background-save-btn {
+        .generate-background-btn {
+            background-color: #006c3b;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .generate-background-btn:hover {
+            background-color: #005a30;
+        }
+        .background-save-btn { /* Style for save button within select container */
             background-color: #c8102e;
             color: #fff;
             border: none;
@@ -1623,6 +1649,7 @@ const App = () => {
             padding: 5px;
             border: 1px dashed #ccc;
             border-radius: 5px;
+            background-color: rgba(255,255,255,0.7);
         }
 
 
