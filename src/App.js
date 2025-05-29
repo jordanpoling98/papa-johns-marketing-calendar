@@ -154,10 +154,10 @@ const App = () => {
   // New state for weather condition in edit modal
   const [editDayWeatherCondition, setEditDayWeatherCondition] = useState('');
 
-  // State for editing day properties
-  const [editDayDate, setEditDayDate] = useState('');
-  const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
-  const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
+  // State for dynamic background selection
+  const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
+  const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
+
 
   // Gemini API Key
   const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
@@ -216,6 +216,7 @@ const App = () => {
       // Use the SHARED path for calendar data - REMOVED /users/{userId}/
       const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
       const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
+      const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
       
       const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -253,10 +254,24 @@ const App = () => {
         // Don't block loading if offers fail, but alert if critical
       });
 
+      const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().month) {
+          setSelectedMonthBackground(docSnap.data().month);
+        } else {
+          console.log("No background setting found, defaulting to June.");
+          setDoc(backgroundDocRef, { month: 'june' })
+            .then(() => setSelectedMonthBackground('june'))
+            .catch(error => console.error("Error setting initial background document:", error));
+        }
+      }, (error) => {
+        console.error("Error fetching background setting:", error);
+      });
+
 
       return () => {
         unsubscribeCalendar(); // Cleanup calendar listener
         unsubscribeOffers(); // Cleanup offers listener
+        unsubscribeBackground(); // Cleanup background listener
       }; 
     } else if (isAuthReady && !userId) {
       // If auth is ready but userId is null (e.g., anonymous sign-in failed)
@@ -294,6 +309,22 @@ const App = () => {
       }
     } else {
       console.warn("Firestore or User ID not ready for saving digital offers.");
+    }
+  };
+
+  // Function to update selected background in Firestore
+  const updateSelectedBackgroundInFirestore = async (month) => {
+    if (db && userId) {
+      try {
+        const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
+        await setDoc(backgroundDocRef, { month: month });
+        console.log("Background month saved to Firestore!");
+      } catch (error) {
+        console.error("Error saving background month to Firestore:", error);
+        showAlert("Failed to save background setting. Please try again.");
+      }
+    } else {
+      console.warn("Firestore or User ID not ready for saving background.");
     }
   };
 
@@ -450,7 +481,7 @@ const App = () => {
     e.preventDefault();
     const dateNum = parseInt(holidayDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum < 1 || dateNum > 31 || !holidayTitle.trim()) { // Max 31 days
+    if (isNaN(dateNum) || dateNum < 1 || dateNum > 31 || !holidayTitle.trim()) { // Max 31 days
       showAlert('Please enter a valid date (1-31) and holiday title.');
       return;
     }
@@ -717,6 +748,20 @@ const App = () => {
 
   const weeks = chunkIntoWeeks(calendar);
 
+  // Function to get background image URL based on month
+  const getMonthBackgroundUrl = (month) => {
+    switch (month) {
+      case 'june':
+        return 'https://placehold.co/1200x300/e0f2f7/005080?text=June+Theme+-+Summer+Vibes'; // Light blue/cyan for June
+      case 'july':
+        return 'https://placehold.co/1200x300/ffe0b2/e65100?text=July+Theme+-+Warm+Summer'; // Orange/peach for July
+      case 'august':
+        return 'https://placehold.co/1200x300/dcedc8/33691e?text=August+Theme+-+Green+Harvest'; // Light green for August
+      default:
+        return 'https://placehold.co/1200x300/e0e0e0/555555?text=Default+Background'; // Default grey
+    }
+  };
+
   // Show loading indicator if Firestore is still loading data
   if (isFirestoreLoading) {
     return (
@@ -766,9 +811,7 @@ const App = () => {
       </div>
 
       <div className="calendar-container">
-        <div className="calendar-header">
-          <img src="https://images.vexels.com/media/users/3/143402/isolated/preview/afbbf15d5e82a1c4fb5a55c4eacf3003-graduation-cap-icon.png" alt="Graduation Cap" className="header-icon" />
-          <img src="https://png.pngtree.com/png-clipart/20220812/ourmid/pngtree-shine-sun-light-effect-free-png-and-psd-png-image_6106445.png" alt="Sunshine" className="header-icon" />
+        <div className="calendar-header" style={{ backgroundImage: `url(${getMonthBackgroundUrl(selectedMonthBackground)})` }}>
           {isTitleEditing ? (
             <div className="title-edit-container">
                 <input
@@ -806,6 +849,31 @@ const App = () => {
                 {digitalOffersText}
                 <span className="digital-offers-edit-icon">✏️</span>
               </p>
+            )}
+          </div>
+          {/* New: Background Selection Controls */}
+          <div className="background-selection-controls">
+            {isBackgroundSelectionEditing ? (
+              <div className="background-select-container">
+                <select
+                  value={selectedMonthBackground}
+                  onChange={(e) => setSelectedMonthBackground(e.target.value)}
+                  className="background-select"
+                >
+                  <option value="june">June</option>
+                  <option value="july">July</option>
+                  <option value="august">August</option>
+                  {/* Add more months as needed */}
+                </select>
+                <button className="background-save-btn" onClick={() => {
+                  setIsBackgroundSelectionEditing(false);
+                  updateSelectedBackgroundInFirestore(selectedMonthBackground);
+                }}>Save</button>
+              </div>
+            ) : (
+              <button className="edit-background-button" onClick={() => setIsBackgroundSelectionEditing(true)} title="Edit Background">
+                Edit Background ✨
+              </button>
             )}
           </div>
         </div>
@@ -1305,7 +1373,9 @@ const App = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #ffffff;
+          background-color: #ffffff; /* Fallback color */
+          background-size: cover;
+          background-position: center;
           border-bottom: 1px solid #e0e0e0;
           border-radius: 12px 12px 0 0;
           flex-wrap: wrap; /* Allow items to wrap on smaller screens */
@@ -1386,6 +1456,58 @@ const App = () => {
         }
         .digital-offers-save-btn:hover {
             background-color: #005a30;
+        }
+
+        .background-selection-controls {
+            margin-left: 20px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .edit-background-button {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .edit-background-button:hover {
+            background-color: #e0e0e0;
+        }
+        .background-select-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+            top: 0;
+            right: 0;
+        }
+        .background-select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .background-save-btn {
+            background-color: #c8102e;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .background-save-btn:hover {
+            background-color: #a00d27;
         }
 
 
@@ -1634,7 +1756,8 @@ const App = () => {
         .card .generate-promo-star,
         .title-edit-icon, /* Title edit icon also hidden by default */
         .banner-edit-icon, /* Banner edit icon also hidden by default */
-        .digital-offers-edit-icon { /* Digital offers edit icon hidden by default */
+        .digital-offers-edit-icon, /* Digital offers edit icon hidden by default */
+        .background-selection-controls { /* Hide background selection controls */
           opacity: 0; 
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
@@ -1664,16 +1787,22 @@ const App = () => {
         .digital-offers-box:hover .digital-offers-edit-icon {
             opacity: 1;
         }
+        /* Show background selection controls on header hover */
+        .calendar-header:hover .background-selection-controls {
+            opacity: 1;
+        }
 
 
         /* Individual icon hover for slight scale/background change */
         .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover,
-        .title-edit-icon:hover, .banner-edit-icon:hover, .digital-offers-edit-icon:hover {
+        .title-edit-icon:hover, .banner-edit-icon:hover, .digital-offers-edit-icon:hover,
+        .edit-background-button:hover {
             transform: scale(1.1);
             background-color: rgba(255, 255, 255, 0.7);
         }
         .edit-icon:active, .delete-icon:active, .generate-promo-star:active,
-        .title-edit-icon:active, .banner-edit-icon:active, .digital-offers-edit-icon:active {
+        .title-edit-icon:active, .banner-edit-icon:active, .digital-offers-edit-icon:active,
+        .edit-background-button:active {
             transform: scale(0.95);
         }
         
@@ -1844,10 +1973,7 @@ const App = () => {
                 font-size: 10pt; /* Base font size for print */
             }
             .add-event-controls,
-            .modal-overlay { /* Hide modals */
-                display: none !important;
-            }
-            /* Explicitly hide all icons that should not be in print */
+            .modal-overlay,
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -1855,7 +1981,8 @@ const App = () => {
             .copy-to-clipboard-btn,
             .title-edit-icon,
             .title-edit-container,
-            .title-edit-save-btn {
+            .title-edit-save-btn,
+            .background-selection-controls { /* Hide background selection controls in print */
                 display: none !important; /* Hide all interactive/non-print elements */
             }
             /* Ensure the header icons (sun and graduation cap) are visible */
@@ -1898,6 +2025,9 @@ const App = () => {
                 padding: 0.2rem 0; /* Reduced padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
+                background-image: url(${getMonthBackgroundUrl('june')}) !important; /* Force June background for print */
+                background-size: cover !important;
+                background-position: center !important;
                 print-color-adjust: exact;
                 flex-wrap: nowrap !important; /* Prevent wrapping in header for print */
                 justify-content: space-between !important; /* Distribute items */
@@ -2028,7 +2158,8 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .weather {
-                font-size: 0.6em; /* Smaller font */
+                font-size: 0.75em !important; /* Increased weather font size */
+                font-weight: 700 !important; /* Make bolder */
                 color: #555;
                 print-color-adjust: exact;
             }
@@ -2052,7 +2183,7 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.5em; /* Smallest font */
+                font-size: 0.55em !important; /* Slightly larger promo detail */
                 margin-top: 1px; /* Reduced margin */
                 color: #666;
                 print-color-adjust: exact;
@@ -2060,7 +2191,7 @@ const App = () => {
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.5em; /* Smallest font */
+                font-size: 0.55em; /* Smallest font */
                 padding: 1px 4px; /* Reduced padding */
                 box-shadow: none;
                 border: 1px solid #999;
