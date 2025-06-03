@@ -431,9 +431,9 @@ const App = () => {
   const openEditDayModal = (dayData) => { // Changed parameter name to dayData to avoid conflict
     if (dayData) {
       setEditDayDate(dayData.date); 
-      setEditDayWeatherHigh(dayData.weather.high);
+      setEditDayWeatherHigh(dayData.weather?.high || ''); // Safely access high
       setEditDayWeekLabel(dayData.weekLabel || '');
-      setEditDayWeatherCondition(dayData.weather.condition || ''); // Set initial weather condition
+      setEditDayWeatherCondition(dayData.weather?.condition || ''); // Safely access condition
       setSelectedDayData(dayData); // Store the entire day object for context
       setIsEditDayModalVisible(true);
     }
@@ -644,13 +644,13 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { 
+            if (day.date === dayDate) { // Fix: Changed dayData to dayDate
                 return {
                     ...day,
                     promos: [],
                     holiday: null,
                     specialDay: '',
-                    specialText: '',
+                    selectedDayData: null, // Clear selected day data
                     weather: { high: null, icon: '' }, // Clear weather
                     weekLabel: '' // Clear week label
                 };
@@ -747,7 +747,7 @@ const App = () => {
         throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
       }
 
-      const result = await result.json();
+      const result = await response.json(); // Corrected: was `result.json()`
 
       if (result.candidates && result.candidates.length > 0 &&
           result.candidates[0].content && result.candidates[0].content.parts &&
@@ -792,14 +792,14 @@ const App = () => {
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
         // Fallback to placeholder if image generation fails
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
         updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
       // Fallback to placeholder if API call fails
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); // Use promptText for placeholder
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
       updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
     } finally {
       setIsGeneratingBackground(false);
@@ -994,24 +994,28 @@ const App = () => {
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
                 {week.map((dayData, dayIndex) => (
-                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
+                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''} ${dayData.date === null ? 'info-only-cell' : ''}`}> {/* Added info-only-cell class */}
                     {dayData ? (
                       <div className="cell-content">
                         <div className="date-weather-group">
-                          <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
-                            <div className="date-number">
-                              {dayData.date}
+                          {dayData.date !== null && ( // Only render date if not null
+                            <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
+                              <div className="date-number">
+                                {dayData.date}
+                              </div>
                             </div>
-                          </div>
-                          <div className="weather">
-                            {dayData.weather.icon} {dayData.weather.high}°
-                          </div>
+                          )}
+                          {dayData.weather !== null && ( // Only render weather if not null
+                            <div className="weather">
+                              {dayData.weather.icon} {dayData.weather.high}°
+                            </div>
+                          )}
                           {/* Edit/Delete Day Icons */}
                           <span
                             className="edit-icon day-edit-icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openEditDayModal(dayData.date);
+                              openEditDayModal(dayData); // Pass the entire dayData object
                             }}
                             title="Edit Day"
                           >
@@ -1675,6 +1679,16 @@ const App = () => {
         .empty-cell {
             background-color: #f9f9f9 !important; /* Lighter background for empty cells */
         }
+        /* Style for cells with only info (no date/weather) */
+        .info-only-cell .cell-content {
+            justify-content: center; /* Center content vertically */
+            align-items: center; /* Center content horizontally */
+            height: 100%; /* Ensure it takes full height */
+        }
+        .info-only-cell .date-weather-group {
+            display: none; /* Hide date/weather group for info-only cells */
+        }
+
 
         .cell-content {
             display: flex;
@@ -1775,6 +1789,18 @@ const App = () => {
         .badge.monthly-offer .promo-detail { /* Make detail white for this badge */
             color: #fff;
             font-weight: 600;
+        }
+        /* New style for pay periods badge */
+        .badge.pay-periods {
+            background-color: #e6f7ff; /* Light blue */
+            color: #0056b3; /* Darker blue text */
+            border: 1px solid #99d6ff;
+            font-weight: 600;
+            font-size: 0.85em;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-top: 0; /* Remove top margin if it's the only content */
+            line-height: 1.3;
         }
 
 
