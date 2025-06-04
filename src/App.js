@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';More actions
+import React, { useState, useEffect } from 'react';
 // Import Firebase modules
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -63,11 +63,10 @@ const initialCalendarData = [
   { date: 29, day: 'Sun', weather: { high: 82, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
   // Adding July days and Monthly Offer Block
-  // Modified July 2nd to remove date and weather for pay periods display
-  { date: null, day: 'Wed', weather: null, promos: [
-    { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
-  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
-  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025 (moved after July 2nd for now, will re-sort)
+  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025
+  { date: 2, day: 'Wed', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
+    { id: 'monthly-offer', type: 'monthly-offer', text: 'Monthly Digital Offer', detail: 'Cheddar Pizza & Papa\'s Pairings for $6.99' }
+  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Offer
   // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
   // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
@@ -160,8 +159,8 @@ const App = () => {
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
-  // State for dynamic background prompt and generated URL
-  const [backgroundPrompt, setBackgroundPrompt] = useState('June theme: vibrant summer beach colors with subtle wave patterns'); // Default prompt
+  // State for dynamic background selection
+  const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
   const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
   const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
@@ -173,7 +172,7 @@ const App = () => {
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
-    // console.warn(`Environment variable ${key} not found via process.env. Falling back.`); // Suppress warn for this specific issue
+    console.warn(`Environment variable ${key} not found via process.env. Falling back.`);
     return ''; // Return empty string or a safe default
   };
 
@@ -244,7 +243,7 @@ const App = () => {
       const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
       const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
       const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-
+      
       const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const fetchedData = docSnap.data().data; // 'data' field holds the array
@@ -282,26 +281,20 @@ const App = () => {
       });
 
       const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.prompt) { // Check for saved prompt
-            setBackgroundPrompt(data.prompt);
-          }
-          if (data.generatedUrl) { // Check for saved generated URL
-            setGeneratedBackgroundUrl(data.generatedUrl);
-          } else if (data.prompt) { // If prompt exists but no URL, try to generate
-            generateImageBackground(data.prompt);
-          } else { // No data, set default prompt and generate
-            console.log("No background setting found, defaulting and generating image.");
-            const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
-            setBackgroundPrompt(defaultPrompt);
-            generateImageBackground(defaultPrompt); 
+        if (docSnap.exists() && docSnap.data().month) {
+          setSelectedMonthBackground(docSnap.data().month);
+          // If a generated URL is saved, use it
+          if (docSnap.data().generatedUrl) {
+            setGeneratedBackgroundUrl(docSnap.data().generatedUrl);
+          } else {
+            // If month is saved but no generated URL, generate one now
+            generateImageBackground(docSnap.data().month); // Trigger generation if missing
           }
         } else {
-          console.log("No background setting found, defaulting and generating image.");
-          const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
-          setBackgroundPrompt(defaultPrompt);
-          generateImageBackground(defaultPrompt); 
+          console.log("No background setting found, defaulting to June and generating image.");
+          const defaultMonth = 'june';
+          // Immediately try to generate image if no setting exists
+          generateImageBackground(defaultMonth); 
         }
       }, (error) => {
         console.error("Error fetching background setting:", error);
@@ -353,21 +346,21 @@ const App = () => {
   };
 
   // Function to update selected background in Firestore
-  const updateSelectedBackgroundInFirestore = async (prompt, generatedUrl = null) => {
+  const updateSelectedBackgroundInFirestore = async (month, generatedUrl = null) => {
     if (db && userId) {
       try {
         const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-        const dataToSave = { prompt: prompt };
+        const dataToSave = { month: month };
         if (generatedUrl) {
           dataToSave.generatedUrl = generatedUrl;
         } else {
           // If no generated URL provided, fallback to placeholder and save it
-          dataToSave.generatedUrl = getMonthPlaceholderUrl(prompt); // Use prompt for placeholder text
+          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); 
         }
         await setDoc(backgroundDocRef, dataToSave);
-        console.log("Background prompt and URL saved to Firestore!");
+        console.log("Background month and URL saved to Firestore!");
       } catch (error) {
-        console.error("Error saving background setting to Firestore:", error);
+        console.error("Error saving background month to Firestore:", error);
         showAlert("Failed to save background setting. Please try again.");
       }
     } else {
@@ -428,13 +421,14 @@ const App = () => {
   };
 
   // Function to open Edit Day modal
-  const openEditDayModal = (dayData) => { // Changed parameter name to dayData to avoid conflict
-    if (dayData) {
-      setEditDayDate(dayData.date); 
-      setEditDayWeatherHigh(dayData.weather.high);
-      setEditDayWeekLabel(dayData.weekLabel || '');
-      setEditDayWeatherCondition(dayData.weather.condition || ''); // Set initial weather condition
-      setSelectedDayData(dayData); // Store the entire day object for context
+  const openEditDayModal = (dayDate) => {
+    const day = calendar.find(d => d.date === dayDate);
+    if (day) {
+      setEditDayDate(day.date); 
+      setEditDayWeatherHigh(day.weather.high);
+      setEditDayWeekLabel(day.weekLabel || '');
+      setEditDayWeatherCondition(day.weather.condition || ''); // Set initial weather condition
+      setSelectedDayData(day); // Store the entire day object for context
       setIsEditDayModalVisible(true);
     }
   };
@@ -502,7 +496,7 @@ const App = () => {
       };
       targetDay.promos.push(newPromo);
     }
-
+    
     // Update the calendar with the modified target day
     if (targetDayIndex !== -1) {
         updatedCalendar[targetDayIndex] = targetDay;
@@ -550,7 +544,7 @@ const App = () => {
         } else {
           specialDayClass = 'custom-holiday'; // Generic custom holiday background
         }
-
+        
         return {
           ...day,
           holiday: updatedHoliday,
@@ -644,14 +638,13 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayData) { // BUG: This should be day.date === dayDate
-            if (day.date === dayDate) { // Fix: Changed dayData to dayDate
+            if (day.date === dayDate) { 
                 return {
                     ...day,
                     promos: [],
                     holiday: null,
                     specialDay: '',
-                    selectedDayData: null, // Clear selected day data
+                    specialText: '',
                     weather: { high: null, icon: '' }, // Clear weather
                     weekLabel: '' // Clear week label
                 };
@@ -748,8 +741,7 @@ const App = () => {
         throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
       }
 
-      const result = await result.json();
-      const result = await response.json(); // Corrected: was `result.json()`
+      const result = await response.json();
 
       if (result.candidates && result.candidates.length > 0 &&
           result.candidates[0].content && result.candidates[0].content.parts &&
@@ -768,11 +760,11 @@ const App = () => {
   };
 
   // Function to generate image using Imagen API
-  const generateImageBackground = async (promptText) => { // Changed parameter to promptText
+  const generateImageBackground = async (month) => {
     setIsGeneratingBackground(true);
     setGeneratedBackgroundUrl(''); // Clear previous image
 
-    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent: "${promptText}". Focus on vibrant colors and abstract patterns suitable for a header background.`;
+    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent the month of ${month}. Focus on vibrant colors and abstract patterns suitable for a header background. Example: "Abstract summer beach colors with subtle wave patterns" for July.`;
 
     const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
     const apiKey = IMAGEN_API_KEY; // Use the IMAGEN_API_KEY from environment variables
@@ -789,20 +781,18 @@ const App = () => {
       if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
         const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
         setGeneratedBackgroundUrl(imageUrl);
-        // Save the generated URL and the prompt to Firestore
-        updateSelectedBackgroundInFirestore(promptText, imageUrl); // Pass promptText
+        // Save the generated URL to Firestore
+        updateSelectedBackgroundInFirestore(month, imageUrl);
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
-        // Fallback to placeholder if image generation fails
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
-        updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+        updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
-      // Fallback to placeholder if API call fails
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText)); 
-      updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
+      updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
     } finally {
       setIsGeneratingBackground(false);
     }
@@ -838,14 +828,21 @@ const App = () => {
   const weeks = chunkIntoWeeks(calendar);
 
   // Function to get background image URL based on month (placeholder for now)
-  const getMonthPlaceholderUrl = (promptText) => { // Changed parameter to promptText
-    // This is a fallback, so a generic placeholder is fine, but can use prompt for text
-    return `https://placehold.co/1200x300/e0e0e0/555555?text=${encodeURIComponent(promptText || 'Default Background')}`;
+  const getMonthPlaceholderUrl = (month) => {
+    switch (month) {
+      case 'june':
+        return 'https://placehold.co/1200x300/e0f2f7/005080?text=June+Theme+-+Summer+Vibes'; // Light blue/cyan for June
+      case 'july':
+        return 'https://placehold.co/1200x300/ffe0b2/e65100?text=July+Theme+-+Warm+Summer'; // Orange/peach for July
+      case 'august':
+        return 'https://placehold.co/1200x300/dcedc8/33691e?text=August+Theme+-+Green+Harvest'; // Light green for August
+      default:
+        return 'https://placehold.co/1200x300/e0e0e0/555555?text=Default+Background'; // Default grey
+    }
   };
 
-  // Use either generated URL or fallback to placeholder
-  // This value is pulled from Firestore first, then determined here.
-  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(backgroundPrompt);
+  // Use either generated URL or placeholder
+  const currentBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
 
 
   // Show loading indicator if Firestore is still loading data
@@ -876,7 +873,7 @@ const App = () => {
       <div className="logo">
         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Papa_Johns_logo.svg/2560px-Papa_Johns_logo.svg.png" alt="Papa John's Logo" />
       </div>
-
+      
       {/* Removed User ID display */}
 
       {/* New: Add Event Controls */}
@@ -897,7 +894,7 @@ const App = () => {
       </div>
 
       <div className="calendar-container">
-        <div className="calendar-header" style={{ backgroundImage: `url(${headerBackgroundUrl})`, backgroundColor: '#e0f2f7' /* Fallback if image fails */ }}>
+        <div className="calendar-header" style={{ backgroundImage: `url(${currentBackgroundUrl})` }}>
           {/* Removed header icons (graduation cap and sun) from screen display */}
           {isTitleEditing ? (
             <div className="title-edit-container">
@@ -942,18 +939,21 @@ const App = () => {
           <div className="background-selection-controls">
             {isBackgroundSelectionEditing ? (
               <div className="background-select-container">
-                <textarea
-                  value={backgroundPrompt}
-                  onChange={(e) => setBackgroundPrompt(e.target.value)}
+                <select
+                  value={selectedMonthBackground}
+                  onChange={(e) => setSelectedMonthBackground(e.target.value)}
                   className="background-select"
-                  rows="3"
-                  placeholder="e.g., vibrant summer beach colors with subtle wave patterns"
-                ></textarea>
+                >
+                  <option value="june">June</option>
+                  <option value="july">July</option>
+                  <option value="august">August</option>
+                  {/* Add more months as needed */}
+                </select>
                 <button className="background-save-btn" onClick={() => {
                   setIsBackgroundSelectionEditing(false);
-                  updateSelectedBackgroundInFirestore(backgroundPrompt, generatedBackgroundUrl);
-                }}>Save Prompt</button>
-                <button className="generate-background-btn" onClick={() => generateImageBackground(backgroundPrompt)} disabled={isGeneratingBackground || !backgroundPrompt.trim()}> {/* Disable if no prompt */}
+                  updateSelectedBackgroundInFirestore(selectedMonthBackground, generatedBackgroundUrl);
+                }}>Save</button>
+                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground}>
                   {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
                 </button>
               </div>
@@ -965,7 +965,7 @@ const App = () => {
             {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
             {!generatedBackgroundUrl && !isGeneratingBackground && (
               <div className="background-guide-message">
-                No background image. Click "Edit Background" to describe and generate one.
+                Click "Edit Background" to select month and generate image.
               </div>
             )}
           </div>
@@ -997,28 +997,23 @@ const App = () => {
               <tr key={weekIndex}>
                 {week.map((dayData, dayIndex) => (
                   <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
-                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''} ${dayData.date === null ? 'info-only-cell' : ''}`}> {/* Added info-only-cell class */}
                     {dayData ? (
                       <div className="cell-content">
                         <div className="date-weather-group">
-                          {dayData.date !== null && ( // Only render date if not null
-                            <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
-                              <div className="date-number">
-                                {dayData.date}
-                              </div>
+                          <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
+                            <div className="date-number">
+                              {dayData.date}
                             </div>
-                          )}
-                          {dayData.weather !== null && ( // Only render weather if not null
-                            <div className="weather">
-                              {dayData.weather.icon} {dayData.weather.high}°
-                            </div>
-                          )}
+                          </div>
+                          <div className="weather">
+                            {dayData.weather.icon} {dayData.weather.high}°
+                          </div>
                           {/* Edit/Delete Day Icons */}
                           <span
                             className="edit-icon day-edit-icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openEditDayModal(dayData); // Pass the entire dayData object
+                              openEditDayModal(dayData.date);
                             }}
                             title="Edit Day"
                           >
@@ -1060,21 +1055,21 @@ const App = () => {
                               </span>
                           )}
                         </div>
-
+                        
                         {dayData.specialText && (
                           <div className="badge special-text-badge">
                             {dayData.specialText}
                             {dayData.holiday?.notes && <div className="holiday-notes">{dayData.holiday.notes}</div>}
                           </div>
                         )}
-
+                        
                         {dayData.promos.map((promo, promoIndex) => (
                           <div className="card" key={promoIndex}>
-                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
+                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
                               {promo.text}
                             </div>
                             {promo.detail && (
-                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
+                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
                                 {promo.detail}
                               </span>
                             )}
@@ -1559,27 +1554,18 @@ const App = () => {
 
         .background-selection-controls {
             margin-left: 20px;
-            position: relative; /* Changed to relative for screen version */
+            position: relative;
             flex-shrink: 0;
             opacity: 1; /* Always visible on screen */
             transition: opacity 0.2s ease-in-out;
-            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            z-index: 10; /* Ensure it's above other elements */
-            display: flex; /* Ensure it's a flex container for its children */
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
         }
         .edit-background-button {
             background-color: #f0f0f0;
             color: #333;
             border: 1px solid #ccc;
             border-radius: 8px;
-            padding: 5px 8px; /* Made smaller */
-            font-size: 0.8em; /* Made smaller */
+            padding: 8px 12px;
+            font-size: 0.9em;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
         }
@@ -1590,12 +1576,15 @@ const App = () => {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            position: static; /* Ensure it's static within its flex parent */
-            background-color: transparent; /* No extra background */
-            border: none;
-            padding: 0;
-            box-shadow: none;
-            z-index: auto;
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+            top: 0;
+            right: 0;
         }
         .background-select {
             padding: 8px;
@@ -1603,20 +1592,7 @@ const App = () => {
             border-radius: 5px;
             font-size: 0.9em;
         }
-        .generate-background-btn {
-            background-color: #006c3b;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 12px;
-            font-size: 0.8em;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .generate-background-btn:hover {
-            background-color: #005a30;
-        }
-        .background-save-btn { /* Style for save button within select container */
+        .background-save-btn {
             background-color: #c8102e;
             color: #fff;
             border: none;
@@ -1647,7 +1623,6 @@ const App = () => {
             padding: 5px;
             border: 1px dashed #ccc;
             border-radius: 5px;
-            background-color: rgba(255,255,255,0.7);
         }
 
 
@@ -2163,7 +2138,7 @@ const App = () => {
                 padding: 0.3rem 0; /* Adjusted padding */
                 border-radius: 0;
                 background-color: #f0f0f0; /* Light grey background for header */
-                background-image: url(${headerBackgroundUrl}) !important; /* Use the actual headerBackgroundUrl for print */
+                background-image: url(${getMonthPlaceholderUrl('june')}) !important; /* Force June background for print */
                 background-size: cover !important;
                 background-position: center !important;
                 print-color-adjust: exact;
@@ -2255,14 +2230,6 @@ const App = () => {
             .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
             .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
             .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
-            .badge.pay-periods { /* New style for pay periods badge in print */
-                background-color: #e6f7ff !important; /* Light blue */
-                color: #0056b3 !important; /* Darker blue text */
-                border: 1px solid #99d6ff !important;
-                font-weight: 700 !important;
-                font-size: 0.8em !important;
-                print-color-adjust: exact;
-            }
 
 
             .cell-content {
