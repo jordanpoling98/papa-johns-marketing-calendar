@@ -6,10 +6,10 @@ import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Define a helper function to get weather icon based on weather condition
 const getWeatherIcon = (condition) => {
-  const lowerCaseCondition = condition.toLowerCase();
-  if (lowerCaseCondition.includes('sunny') || lowerCaseCondition.includes('clear')) return '☀️';
-  if (lowerCaseCondition.includes('cloudy') || lowerCaseCondition.includes('overcast')) return '☁️';
-  if (lowerCaseCondition.includes('rain') || lowerCaseCondition.includes('shower') || lowerCaseCondition.includes('storm')) return '🌧️';
+  const lowerCaseCondition = condition?.toLowerCase(); // Use optional chaining
+  if (lowerCaseCondition?.includes('sunny') || lowerCaseCondition?.includes('clear')) return '☀️';
+  if (lowerCaseCondition?.includes('cloudy') || lowerCaseCondition?.includes('overcast')) return '☁️';
+  if (lowerCaseCondition?.includes('rain') || lowerCaseCondition?.includes('shower') || lowerCaseCondition?.includes('storm')) return '🌧️';
   return '❓'; // Default unknown weather
 };
 
@@ -64,7 +64,7 @@ const initialCalendarData = [
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
   // Adding July days and Monthly Offer Block
   // Modified July 2nd to remove date and weather for pay periods display
-  { date: null, day: 'Wed', weather: null, promos: [
+  { date: null, day: 'Wed', weather: { high: null, condition: null, icon: '❓' }, promos: [ // Changed weather to an object with null values
     { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
   ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
   { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025 (moved after July 2nd for now, will re-sort)
@@ -644,7 +644,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { // Fix: Changed dayData to dayDate
+            if (day.date === dayDate) { 
                 return {
                     ...day,
                     promos: [],
@@ -1005,9 +1005,9 @@ const App = () => {
                               </div>
                             </div>
                           )}
-                          {dayData.weather !== null && ( // Only render weather if not null
+                          {dayData.weather?.icon !== null && ( // Only render weather if not null and icon exists
                             <div className="weather">
-                              {dayData.weather.icon} {dayData.weather.high}°
+                              {dayData.weather?.icon} {dayData.weather?.high}°
                             </div>
                           )}
                           {/* Edit/Delete Day Icons */}
