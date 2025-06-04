@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Import Firebase modules
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Define a helper function to get weather icon based on weather condition
@@ -15,7 +15,8 @@ const getWeatherIcon = (condition) => {
 
 // Define the initial calendar data for June 2025 with accurate dates
 // and VERIFIED HISTORICAL WEATHER DATA FOR JUNE 2024 (Portland, OR vicinity)
-const initialCalendarData = [
+// Note: This data is for June only. July entries will be handled separately if needed.
+const initialJuneCalendarDays = [
   // June 2024 Historical Weather Data for Portland, OR (from AccuWeather)
   { date: 1, day: 'Sun', weather: { high: 73, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 2, day: 'Mon', weather: { high: 62, condition: 'Showers', icon: getWeatherIcon('Showers') }, promos: [
@@ -62,14 +63,13 @@ const initialCalendarData = [
   { date: 28, day: 'Sat', weather: { high: 80, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 29, day: 'Sun', weather: { high: 82, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
-  // Adding July days and Monthly Offer Block
-  { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025
-  { date: 2, day: 'Wed', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
-    { id: 'monthly-offer', type: 'monthly-offer', text: 'Monthly Digital Offer', detail: 'Cheddar Pizza & Papa\'s Pairings for $6.99' }
-  ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Offer
-  // Add day 31 if the month has it, ensure initialCalendarData has 31 entries if needed for a specific month
-  // { date: 31, day: 'Tue', weather: { high: 75, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
 ];
+
+const initialPayPeriodsData = {
+  date: null, day: 'Wed', weather: null, promos: [
+    { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
+  ], holiday: null, weekLabel: ''
+};
 
 // Define initial text for digital offers
 const initialDigitalOffersText = 'Cheddar Crust (1 top for $12.99) and Papa\'s Pairings for $6.99';
@@ -88,8 +88,25 @@ const AlertModal = ({ message, onClose }) => {
   );
 };
 
+// Custom Confirmation Modal Component
+const ConfirmationModal = ({ message, onConfirm, onCancel }) => {
+  return (
+    <div className="modal-overlay visible">
+      <div className="modal-content">
+        <div className="modal-title">Confirm Action</div>
+        <p>{message}</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+          <button className="cancel-btn" onClick={onCancel}>Cancel</button>
+          <button className="submit-event-btn" onClick={onConfirm}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
-  const [calendar, setCalendar] = useState(initialCalendarData);
+  const [calendar, setCalendar] = useState(initialJuneCalendarDays);
+  const [payPeriodsData, setPayPeriodsData] = useState(initialPayPeriodsData); // New state for pay periods
   const [isPromoModalVisible, setIsPromoModalVisible] = useState(false);
   const [isAddEventModalVisible, setIsAddEventModalVisible] = useState(false);
   const [isEditEventModalVisible, setIsEditEventModalVisible] = useState(false);
@@ -108,24 +125,17 @@ const App = () => {
   const [isAlertModalVisible, setIsAlertModalVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
+  // State for confirmation modal
+  const [isConfirmationModalVisible, setIsConfirmationModalVisible] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [confirmationAction, setConfirmationAction] = useState(null); // Function to call on confirm
+
   // Firebase states
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  const [userId, setUserId] = useState(null); 
+  const [userId, setUserId] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
-
-  // Function to show custom alert
-  const showAlert = (message) => {
-    setAlertMessage(message);
-    setIsAlertModalVisible(true);
-  };
-
-  // Function to hide custom alert
-  const hideAlert = () => {
-    setIsAlertModalVisible(false);
-    setAlertMessage('');
-  };
 
   // State for the new/edited event form
   const [eventDate, setEventDate] = useState('');
@@ -136,7 +146,7 @@ const App = () => {
   // State for the new/edited holiday form
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayTitle, setHolidayTitle] = useState('');
-  const [holidayNotes, setHolidayNotes] = useState(''); 
+  const [holidayNotes, setHolidayNotes] = useState('');
   const [holidayHighlight, setHolidayHighlight] = useState(false);
 
   // State for the editable banner
@@ -159,53 +169,59 @@ const App = () => {
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
-  // State for dynamic background selection
-  const [selectedMonthBackground, setSelectedMonthBackground] = useState('june'); // Default to 'june' for now
+  // State for dynamic background prompt and generated URL
+  const [backgroundPrompt, setBackgroundPrompt] = useState('June theme: vibrant summer beach colors with subtle wave patterns'); // Default prompt
   const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
   const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
 
+  // Canvas-provided globals
+  const FIREBASE_CONFIG = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const INITIAL_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-  // Safely access environment variables
-  const getEnv = (key) => {
-    // Check if process and process.env are defined before accessing
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key];
-    }
-    console.warn(`Environment variable ${key} not found via process.env. Falling back.`);
-    return ''; // Return empty string or a safe default
+  // API keys (Canvas will inject these at runtime)
+  const GEMINI_API_KEY = "";
+  const IMAGEN_API_KEY = "";
+
+  // Function to show custom alert
+  const showAlert = (message) => {
+    setAlertMessage(message);
+    setIsAlertModalVisible(true);
   };
 
-  const GEMINI_API_KEY = getEnv('REACT_APP_GEMINI_API_KEY');
-  const IMAGEN_API_KEY = getEnv('REACT_APP_IMAGEN_API_KEY') || ""; 
+  // Function to hide custom alert
+  const hideAlert = () => {
+    setIsAlertModalVisible(false);
+    setAlertMessage('');
+  };
 
-  let firebaseConfig = {};
-  const firebaseConfigString = getEnv('REACT_APP_FIREBASE_CONFIG');
-  try {
-    if (firebaseConfigString) {
-      firebaseConfig = JSON.parse(firebaseConfigString);
-    }
-  } catch (e) {
-    console.error("Error parsing REACT_APP_FIREBASE_CONFIG:", e);
-    // Note: showAlert here would cause infinite loop if Firebase init fails
-  }
+  // Function to show confirmation modal
+  const showConfirmation = (message, action) => {
+    setConfirmationMessage(message);
+    setConfirmationAction(() => action); // Store the action function
+    setIsConfirmationModalVisible(true);
+  };
 
-  const appId = getEnv('REACT_APP_APP_ID') || 'default-app-id';
-
+  // Function to hide confirmation modal
+  const hideConfirmation = () => {
+    setIsConfirmationModalVisible(false);
+    setConfirmationMessage('');
+    setConfirmationAction(null);
+  };
 
   // Initialize Firebase and set up authentication
   useEffect(() => {
-    // Only initialize if firebaseConfig is not an empty object (i.e., it was successfully parsed)
-    if (Object.keys(firebaseConfig).length === 0) {
-      console.error("Firebase config is empty. Data saving will not work. Please ensure REACT_APP_FIREBASE_CONFIG is set and valid JSON.");
+    if (Object.keys(FIREBASE_CONFIG).length === 0) {
+      console.error("Firebase config is empty. Data saving will not work. Please ensure __firebase_config is set and valid JSON.");
       showAlert("Firebase config missing or invalid. Data saving will not work.");
       setIsAuthReady(true);
       setIsFirestoreLoading(false);
-      return; // Exit early if config is bad
+      return;
     }
 
     try {
-      const app = initializeApp(firebaseConfig);
+      const app = initializeApp(FIREBASE_CONFIG);
       const firestore = getFirestore(app);
       const authentication = getAuth(app);
 
@@ -216,10 +232,13 @@ const App = () => {
         if (user) {
           setUserId(user.uid);
         } else {
-          // Sign in anonymously if no user is authenticated
           try {
-            await signInAnonymously(authentication);
-            setUserId(authentication.currentUser.uid); // Set userId after anonymous sign-in
+            if (INITIAL_AUTH_TOKEN) {
+              await signInWithCustomToken(authentication, INITIAL_AUTH_TOKEN);
+            } else {
+              await signInAnonymously(authentication);
+            }
+            setUserId(authentication.currentUser.uid);
           } catch (error) {
             console.error("Error signing in anonymously:", error);
             showAlert("Failed to sign in. Data persistence may not work.");
@@ -234,35 +253,35 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, [JSON.stringify(firebaseConfig)]); // Re-run if config changes (stringify for deep comparison)
+  }, []); // Empty dependency array for one-time initialization
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
     if (db && userId && isAuthReady) {
-      // Use the SHARED path for calendar data - REMOVED /users/{userId}/
-      const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
-      const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
-      const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-      
+      // Corrected Firestore paths to include /public/data/
+      const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
+      const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
+      const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
+      const payPeriodsDocRef = doc(db, `artifacts/${APP_ID}/public/data/payPeriods/june`);
+
       const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const fetchedData = docSnap.data().data; // 'data' field holds the array
           if (fetchedData) {
             setCalendar(fetchedData);
           } else {
-            setCalendar(initialCalendarData); // Fallback to initial if data field is empty
+            setCalendar(initialJuneCalendarDays); // Fallback to initial if data field is empty
           }
         } else {
-          // Document doesn't exist, create it with initial data
           console.log("No calendar data found, creating initial data in Firestore.");
-          setDoc(calendarDocRef, { data: initialCalendarData })
-            .then(() => setCalendar(initialCalendarData))
-            .catch(error => console.error("Error setting initial document:", error));
+          setDoc(calendarDocRef, { data: initialJuneCalendarDays })
+            .then(() => setCalendar(initialJuneCalendarDays))
+            .catch(error => console.error("Error setting initial calendar document:", error));
         }
         setIsFirestoreLoading(false);
       }, (error) => {
-        console.error("Error fetching Firestore data:", error);
-        showAlert("Failed to load saved data. Please check your internet connection or Firebase setup.");
+        console.error("Error fetching Firestore calendar data:", error);
+        showAlert("Failed to load saved calendar data. Please check your internet connection or Firebase setup.");
         setIsFirestoreLoading(false);
       });
 
@@ -277,27 +296,45 @@ const App = () => {
         }
       }, (error) => {
         console.error("Error fetching digital offers data:", error);
-        // Don't block loading if offers fail, but alert if critical
       });
 
       const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().month) {
-          setSelectedMonthBackground(docSnap.data().month);
-          // If a generated URL is saved, use it
-          if (docSnap.data().generatedUrl) {
-            setGeneratedBackgroundUrl(docSnap.data().generatedUrl);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.prompt) {
+            setBackgroundPrompt(data.prompt);
+          }
+          if (data.generatedUrl) {
+            setGeneratedBackgroundUrl(data.generatedUrl);
+          } else if (data.prompt) {
+            generateImageBackground(data.prompt);
           } else {
-            // If month is saved but no generated URL, generate one now
-            generateImageBackground(docSnap.data().month); // Trigger generation if missing
+            console.log("No background setting found, defaulting and generating image.");
+            const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
+            setBackgroundPrompt(defaultPrompt);
+            generateImageBackground(defaultPrompt);
           }
         } else {
-          console.log("No background setting found, defaulting to June and generating image.");
-          const defaultMonth = 'june';
-          // Immediately try to generate image if no setting exists
-          generateImageBackground(defaultMonth); 
+          console.log("No background setting found, defaulting and generating image.");
+          const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
+          setBackgroundPrompt(defaultPrompt);
+          generateImageBackground(defaultPrompt);
         }
       }, (error) => {
         console.error("Error fetching background setting:", error);
+      });
+
+      const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().data) {
+          setPayPeriodsData(docSnap.data().data);
+        } else {
+          console.log("No pay periods data found, setting initial pay periods.");
+          setDoc(payPeriodsDocRef, { data: initialPayPeriodsData })
+            .then(() => setPayPeriodsData(initialPayPeriodsData))
+            .catch(error => console.error("Error setting initial pay periods document:", error));
+        }
+      }, (error) => {
+        console.error("Error fetching pay periods data:", error);
       });
 
 
@@ -305,19 +342,18 @@ const App = () => {
         unsubscribeCalendar(); // Cleanup calendar listener
         unsubscribeOffers(); // Cleanup offers listener
         unsubscribeBackground(); // Cleanup background listener
-      }; 
+        unsubscribePayPeriods(); // Cleanup pay periods listener
+      };
     } else if (isAuthReady && !userId) {
-      // If auth is ready but userId is null (e.g., anonymous sign-in failed)
       setIsFirestoreLoading(false);
     }
-  }, [db, userId, isAuthReady, appId]); // Re-run when db, userId, or authReady changes
+  }, [db, userId, isAuthReady, APP_ID]); // Re-run when db, userId, or authReady changes
 
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
-    if (db && userId) { // userId is still needed to ensure an auth'd state for rule `request.auth != null`
-      // Use the SHARED path for calendar data - REMOVED /users/{userId}/
+    if (db && userId) {
       try {
-        const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
+        const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
         console.log("Calendar data saved to Firestore!");
       } catch (error) {
@@ -333,7 +369,7 @@ const App = () => {
   const updateDigitalOffersInFirestore = async (newText) => {
     if (db && userId) {
       try {
-        const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
+        const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
         await setDoc(offersDocRef, { offerText: newText });
         console.log("Digital offers saved to Firestore!");
       } catch (error) {
@@ -346,21 +382,20 @@ const App = () => {
   };
 
   // Function to update selected background in Firestore
-  const updateSelectedBackgroundInFirestore = async (month, generatedUrl = null) => {
+  const updateSelectedBackgroundInFirestore = async (prompt, generatedUrl = null) => {
     if (db && userId) {
       try {
-        const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-        const dataToSave = { month: month };
+        const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
+        const dataToSave = { prompt: prompt };
         if (generatedUrl) {
           dataToSave.generatedUrl = generatedUrl;
         } else {
-          // If no generated URL provided, fallback to placeholder and save it
-          dataToSave.generatedUrl = getMonthPlaceholderUrl(month); 
+          dataToSave.generatedUrl = getMonthPlaceholderUrl(prompt);
         }
         await setDoc(backgroundDocRef, dataToSave);
-        console.log("Background month and URL saved to Firestore!");
+        console.log("Background prompt and URL saved to Firestore!");
       } catch (error) {
-        console.error("Error saving background month to Firestore:", error);
+        console.error("Error saving background setting to Firestore:", error);
         showAlert("Failed to save background setting. Please try again.");
       }
     } else {
@@ -396,7 +431,7 @@ const App = () => {
     if (day) {
       const promo = day.promos.find(p => p.id === promoId);
       if (promo) {
-        setEventDate(dayDate); 
+        setEventDate(dayDate);
         setEventTitle(promo.text);
         setEventPromoCode(promo.detail || '');
         setEventColor(promo.type);
@@ -412,7 +447,7 @@ const App = () => {
     if (day && day.holiday) {
       setHolidayDate(dayDate);
       setHolidayTitle(day.holiday.title);
-      setHolidayNotes(day.holiday.notes || ''); 
+      setHolidayNotes(day.holiday.notes || '');
       setHolidayHighlight(day.holiday.highlight || false);
       setSelectedHoliday({ dayDate, id: day.holiday.id });
       setBackgroundSuggestion(''); // Clear previous suggestion
@@ -421,17 +456,19 @@ const App = () => {
   };
 
   // Function to open Edit Day modal
-  const openEditDayModal = (dayDate) => {
-    const day = calendar.find(d => d.date === dayDate);
-    if (day) {
-      setEditDayDate(day.date); 
-      setEditDayWeatherHigh(day.weather.high);
-      setEditDayWeekLabel(day.weekLabel || '');
-      setEditDayWeatherCondition(day.weather.condition || ''); // Set initial weather condition
-      setSelectedDayData(day); // Store the entire day object for context
+  const openEditDayModal = useCallback((dayData) => {
+    // Only open if dayData has a valid date (not null for info-only cells)
+    if (dayData && dayData.date !== null) {
+      setEditDayDate(dayData.date);
+      setEditDayWeatherHigh(dayData.weather?.high || '');
+      setEditDayWeekLabel(dayData.weekLabel || '');
+      setEditDayWeatherCondition(dayData.weather?.condition || '');
+      setSelectedDayData(dayData);
       setIsEditDayModalVisible(true);
+    } else {
+      showAlert("Cannot edit this cell. It does not represent a calendar day.");
     }
-  };
+  }, []);
 
 
   const handleAddEditEventSubmit = (e) => {
@@ -439,8 +476,8 @@ const App = () => {
     const oldDayDate = selectedEvent ? selectedEvent.dayDate : null; // Capture old date if editing
     const newDayDate = parseInt(eventDate, 10);
 
-    if (isNaN(newDayDate) || newDayDate < 1 || newDayDate > 31 || !eventTitle.trim()) { // Max 31 days
-      showAlert('Please enter a valid date (1-31) and promo title.');
+    if (isNaN(newDayDate) || newDayDate < 1 || newDayDate > 30 || !eventTitle.trim()) { // June has 30 days
+      showAlert('Please enter a valid date (1-30) and promo title.');
       return;
     }
 
@@ -465,9 +502,6 @@ const App = () => {
     if (targetDayIndex !== -1) {
         targetDay = { ...updatedCalendar[targetDayIndex] };
     } else {
-        // Create a new day entry if it doesn't exist (e.g., if moving from June to July)
-        // This assumes initialCalendarData covers all possible dates within the month range
-        // For cross-month moves, you'd need more complex logic to create new month structures.
         showAlert("Cannot move event to a date outside the current month's defined range.");
         return;
     }
@@ -496,12 +530,11 @@ const App = () => {
       };
       targetDay.promos.push(newPromo);
     }
-    
+
     // Update the calendar with the modified target day
     if (targetDayIndex !== -1) {
         updatedCalendar[targetDayIndex] = targetDay;
     } else {
-        // If a new day was created, add it to the calendar (and sort if necessary)
         updatedCalendar.push(targetDay);
         updatedCalendar.sort((a, b) => a.date - b.date);
     }
@@ -510,6 +543,7 @@ const App = () => {
     updateCalendarInFirestore(updatedCalendar);
 
     setIsEditEventModalVisible(false);
+    setIsAddEventModalVisible(false); // Close add modal too
     // Reset form fields
     setEventDate('');
     setEventTitle('');
@@ -521,8 +555,8 @@ const App = () => {
     e.preventDefault();
     const dateNum = parseInt(holidayDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum > 31 || !holidayTitle.trim()) { // Max 31 days
-      showAlert('Please enter a valid date (1-31) and holiday title.');
+    if (isNaN(dateNum) || dateNum < 1 || dateNum > 30 || !holidayTitle.trim()) { // June has 30 days
+      showAlert('Please enter a valid date (1-30) and holiday title.');
       return;
     }
 
@@ -535,21 +569,20 @@ const App = () => {
 
     const updatedCalendar = calendar.map(day => {
       if (day.date === dateNum) {
-        // Determine specialDayClass based on holiday title
         let specialDayClass = '';
         if (updatedHoliday.title.toLowerCase().includes("father's day")) {
           specialDayClass = 'special-fathers-day';
         } else if (updatedHoliday.title.toLowerCase().includes("juneteenth")) {
           specialDayClass = 'special-juneteenth';
         } else {
-          specialDayClass = 'custom-holiday'; // Generic custom holiday background
+          specialDayClass = 'custom-holiday';
         }
-        
+
         return {
           ...day,
           holiday: updatedHoliday,
-          specialDay: specialDayClass, // Apply background class
-          specialText: updatedHoliday.title // Use holiday title as specialText
+          specialDay: specialDayClass,
+          specialText: updatedHoliday.title
         };
       }
       return day;
@@ -558,7 +591,7 @@ const App = () => {
     updateCalendarInFirestore(updatedCalendar);
 
     setIsAddHolidayModalVisible(false);
-    setIsEditHolidayModalVisible(false); // Close edit modal too
+    setIsEditHolidayModalVisible(false);
     setHolidayDate('');
     setHolidayTitle('');
     setHolidayNotes('');
@@ -570,8 +603,8 @@ const App = () => {
     e.preventDefault();
     const dateNum = parseInt(editDayDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum > 31) { // Max 31 days
-        showAlert('Please enter a valid date (1-31).');
+    if (isNaN(dateNum) || dateNum < 1 || dateNum > 30) { // June has 30 days
+        showAlert('Please enter a valid date (1-30).');
         return;
     }
 
@@ -581,8 +614,8 @@ const App = () => {
                 ...day,
                 weather: {
                     high: parseInt(editDayWeatherHigh, 10),
-                    condition: editDayWeatherCondition, // Use selected condition
-                    icon: getWeatherIcon(editDayWeatherCondition) // Generate icon from condition
+                    condition: editDayWeatherCondition,
+                    icon: getWeatherIcon(editDayWeatherCondition)
                 },
                 weekLabel: editDayWeekLabel.trim() || ''
             };
@@ -596,13 +629,13 @@ const App = () => {
     setEditDayDate('');
     setEditDayWeatherHigh('');
     setEditDayWeekLabel('');
-    setEditDayWeatherCondition(''); // Reset weather condition
+    setEditDayWeatherCondition('');
     setSelectedDayData(null);
   };
 
 
   const handleDeleteEvent = (dayDate, promoId) => {
-    if (window.confirm('Are you sure you want to delete this event?')) {
+    showConfirmation('Are you sure you want to delete this event?', () => {
       const updatedCalendar = calendar.map(day => {
         if (day.date === dayDate) {
           return {
@@ -614,11 +647,12 @@ const App = () => {
       });
       setCalendar(updatedCalendar);
       updateCalendarInFirestore(updatedCalendar);
-    }
+      hideConfirmation();
+    });
   };
 
   const handleDeleteHoliday = (dayDate) => {
-    if (window.confirm('Are you sure you want to delete this holiday?')) {
+    showConfirmation('Are you sure you want to delete this holiday?', () => {
       const updatedCalendar = calendar.map(day => {
         if (day.date === dayDate) {
           return {
@@ -632,28 +666,30 @@ const App = () => {
       });
       setCalendar(updatedCalendar);
       updateCalendarInFirestore(updatedCalendar);
-    }
+      hideConfirmation();
+    });
   };
 
   const handleDeleteDay = (dayDate) => {
-    if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
+    showConfirmation(`Are you sure you want to clear all content for day ${dayDate}?`, () => {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { 
+            if (day.date === dayDate) {
                 return {
                     ...day,
                     promos: [],
                     holiday: null,
                     specialDay: '',
-                    specialText: '',
-                    weather: { high: null, icon: '' }, // Clear weather
-                    weekLabel: '' // Clear week label
+                    selectedDayData: null,
+                    weather: { high: null, icon: '' },
+                    weekLabel: ''
                 };
             }
             return day;
         });
         setCalendar(updatedCalendar);
         updateCalendarInFirestore(updatedCalendar);
-    }
+        hideConfirmation();
+    });
   };
 
   // Function to copy text to clipboard
@@ -682,8 +718,7 @@ const App = () => {
     let chatHistory = [];
     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
     const payload = { contents: chatHistory };
-    // Use the defined API key
-    const apiKey = GEMINI_API_KEY; 
+    const apiKey = GEMINI_API_KEY;
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -725,8 +760,7 @@ const App = () => {
     let chatHistory = [];
     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
     const payload = { contents: chatHistory };
-    // Use the defined API key
-    const apiKey = GEMINI_API_KEY; 
+    const apiKey = GEMINI_API_KEY;
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -760,39 +794,38 @@ const App = () => {
   };
 
   // Function to generate image using Imagen API
-  const generateImageBackground = async (month) => {
+  const generateImageBackground = async (promptText) => {
     setIsGeneratingBackground(true);
-    setGeneratedBackgroundUrl(''); // Clear previous image
+    setGeneratedBackgroundUrl('');
 
-    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent the month of ${month}. Focus on vibrant colors and abstract patterns suitable for a header background. Example: "Abstract summer beach colors with subtle wave patterns" for July.`;
+    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent: "${promptText}". Focus on vibrant colors and abstract patterns suitable for a header background.`;
 
     const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
-    const apiKey = IMAGEN_API_KEY; // Use the IMAGEN_API_KEY from environment variables
+    const apiKey = IMAGEN_API_KEY;
 
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
       const response = await fetch(apiUrl, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify(payload)
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify(payload)
              });
       const result = await response.json();
 
       if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
         const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
         setGeneratedBackgroundUrl(imageUrl);
-        // Save the generated URL to Firestore
-        updateSelectedBackgroundInFirestore(month, imageUrl);
+        updateSelectedBackgroundInFirestore(promptText, imageUrl);
       } else {
         showAlert('Could not generate background image. Unexpected API response.');
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
-        updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText));
+        updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
       }
     } catch (error) {
       console.error('Error generating image:', error);
       showAlert(`Error generating background: ${error.message}.`);
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(month)); // Fallback to placeholder
-      updateSelectedBackgroundInFirestore(month, getMonthPlaceholderUrl(month));
+      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText));
+      updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
     } finally {
       setIsGeneratingBackground(false);
     }
@@ -802,22 +835,28 @@ const App = () => {
   // Helper to chunk the calendar data into weeks for table rendering
   const chunkIntoWeeks = (data) => {
     const weeks = [];
-    const daysInMonth = data.length; // 30 for June
+    // June 2025 starts on a Sunday (day 0)
     const firstDayOfMonthDate = new Date('2025-06-01T00:00:00');
-    const firstDayOfWeekIndex = firstDayOfMonthDate.getDay();
+    const firstDayOfWeekIndex = firstDayOfMonthDate.getDay(); // 0 for Sunday
 
+    // Create a flat array representing the 6x7 grid (max possible weeks for a month)
     const allDaysInGrid = Array(6 * 7).fill(null);
 
     let currentDayIndex = firstDayOfWeekIndex;
-    for (let i = 0; i < daysInMonth; i++) {
-      allDaysInGrid[currentDayIndex] = data[i];
-      currentDayIndex++;
+    for (let i = 0; i < data.length; i++) {
+      // Ensure we only place days if they fit within the grid
+      if (currentDayIndex < allDaysInGrid.length) {
+        allDaysInGrid[currentDayIndex] = data[i];
+        currentDayIndex++;
+      }
     }
 
+    // Chunk into weeks
     for (let i = 0; i < allDaysInGrid.length; i += 7) {
       weeks.push(allDaysInGrid.slice(i, i + 7));
     }
 
+    // Remove any entirely empty trailing weeks
     while (weeks.length > 0 && weeks[weeks.length - 1].every(day => day === null)) {
       weeks.pop();
     }
@@ -828,21 +867,11 @@ const App = () => {
   const weeks = chunkIntoWeeks(calendar);
 
   // Function to get background image URL based on month (placeholder for now)
-  const getMonthPlaceholderUrl = (month) => {
-    switch (month) {
-      case 'june':
-        return 'https://placehold.co/1200x300/e0f2f7/005080?text=June+Theme+-+Summer+Vibes'; // Light blue/cyan for June
-      case 'july':
-        return 'https://placehold.co/1200x300/ffe0b2/e65100?text=July+Theme+-+Warm+Summer'; // Orange/peach for July
-      case 'august':
-        return 'https://placehold.co/1200x300/dcedc8/33691e?text=August+Theme+-+Green+Harvest'; // Light green for August
-      default:
-        return 'https://placehold.co/1200x300/e0e0e0/555555?text=Default+Background'; // Default grey
-    }
+  const getMonthPlaceholderUrl = (promptText) => {
+    return `https://placehold.co/1200x300/e0e0e0/555555?text=${encodeURIComponent(promptText || 'Default Background')}`;
   };
 
-  // Use either generated URL or placeholder
-  const currentBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(selectedMonthBackground);
+  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(backgroundPrompt);
 
 
   // Show loading indicator if Firestore is still loading data
@@ -873,8 +902,6 @@ const App = () => {
       <div className="logo">
         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Papa_Johns_logo.svg/2560px-Papa_Johns_logo.svg.png" alt="Papa John's Logo" />
       </div>
-      
-      {/* Removed User ID display */}
 
       {/* New: Add Event Controls */}
       <div className="add-event-controls">
@@ -882,11 +909,9 @@ const App = () => {
           <button className="add-button" onClick={openAddEventModal}>
             +
           </button>
-          {/* New: Add Holiday Button */}
           <button className="add-button" onClick={openAddHolidayModal} title="Add Holiday">
             🎁
           </button>
-          {/* New: Print Button */}
           <button className="print-button" onClick={() => window.print()} title="Print Calendar">
             🖨️
           </button>
@@ -894,8 +919,7 @@ const App = () => {
       </div>
 
       <div className="calendar-container">
-        <div className="calendar-header" style={{ backgroundImage: `url(${currentBackgroundUrl})` }}>
-          {/* Removed header icons (graduation cap and sun) from screen display */}
+        <div className="calendar-header" style={{ backgroundImage: `url(${headerBackgroundUrl})`, backgroundColor: '#e0f2f7' }}>
           {isTitleEditing ? (
             <div className="title-edit-container">
                 <input
@@ -925,7 +949,7 @@ const App = () => {
                 ></textarea>
                 <button className="digital-offers-save-btn" onClick={() => {
                   setIsDigitalOffersEditing(false);
-                  updateDigitalOffersInFirestore(digitalOffersText); // Save to Firestore
+                  updateDigitalOffersInFirestore(digitalOffersText);
                 }}>Save</button>
               </div>
             ) : (
@@ -939,21 +963,18 @@ const App = () => {
           <div className="background-selection-controls">
             {isBackgroundSelectionEditing ? (
               <div className="background-select-container">
-                <select
-                  value={selectedMonthBackground}
-                  onChange={(e) => setSelectedMonthBackground(e.target.value)}
+                <textarea
+                  value={backgroundPrompt}
+                  onChange={(e) => setBackgroundPrompt(e.target.value)}
                   className="background-select"
-                >
-                  <option value="june">June</option>
-                  <option value="july">July</option>
-                  <option value="august">August</option>
-                  {/* Add more months as needed */}
-                </select>
+                  rows="3"
+                  placeholder="e.g., vibrant summer beach colors with subtle wave patterns"
+                ></textarea>
                 <button className="background-save-btn" onClick={() => {
                   setIsBackgroundSelectionEditing(false);
-                  updateSelectedBackgroundInFirestore(selectedMonthBackground, generatedBackgroundUrl);
-                }}>Save</button>
-                <button className="generate-background-btn" onClick={() => generateImageBackground(selectedMonthBackground)} disabled={isGeneratingBackground}>
+                  updateSelectedBackgroundInFirestore(backgroundPrompt, generatedBackgroundUrl);
+                }}>Save Prompt</button>
+                <button className="generate-background-btn" onClick={() => generateImageBackground(backgroundPrompt)} disabled={isGeneratingBackground || !backgroundPrompt.trim()}>
                   {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
                 </button>
               </div>
@@ -965,7 +986,7 @@ const App = () => {
             {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
             {!generatedBackgroundUrl && !isGeneratingBackground && (
               <div className="background-guide-message">
-                Click "Edit Background" to select month and generate image.
+                No background image. Click "Edit Background" to describe and generate one.
               </div>
             )}
           </div>
@@ -996,39 +1017,47 @@ const App = () => {
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
                 {week.map((dayData, dayIndex) => (
-                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
+                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''} ${dayData === null ? 'empty-cell' : ''}`}>
                     {dayData ? (
                       <div className="cell-content">
                         <div className="date-weather-group">
-                          <div className="date-number-wrapper"> {/* New wrapper for date and its background */}
-                            <div className="date-number">
-                              {dayData.date}
+                          {dayData.date !== null && (
+                            <div className="date-number-wrapper">
+                              <div className="date-number">
+                                {dayData.date}
+                              </div>
                             </div>
-                          </div>
-                          <div className="weather">
-                            {dayData.weather.icon} {dayData.weather.high}°
-                          </div>
-                          {/* Edit/Delete Day Icons */}
-                          <span
-                            className="edit-icon day-edit-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditDayModal(dayData.date);
-                            }}
-                            title="Edit Day"
-                          >
-                            ✏️
-                          </span>
-                          <span
-                            className="delete-icon day-delete-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDay(dayData.date);
-                            }}
-                            title="Clear Day Content"
-                          >
-                            🗑️
-                          </span>
+                          )}
+                          {dayData.weather !== null && (
+                            <div className="weather">
+                              {dayData.weather.icon} {dayData.weather.high}°
+                            </div>
+                          )}
+                          {/* Edit/Delete Day Icons - only for actual date cells */}
+                          {dayData.date !== null && (
+                            <>
+                              <span
+                                className="edit-icon day-edit-icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDayModal(dayData);
+                                }}
+                                title="Edit Day"
+                              >
+                                ✏️
+                              </span>
+                              <span
+                                className="delete-icon day-delete-icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDay(dayData.date);
+                                }}
+                                title="Clear Day Content"
+                              >
+                                🗑️
+                              </span>
+                            </>
+                          )}
 
                           {dayData.holiday && ( // Holiday edit/delete icons
                               <span
@@ -1055,21 +1084,21 @@ const App = () => {
                               </span>
                           )}
                         </div>
-                        
+
                         {dayData.specialText && (
                           <div className="badge special-text-badge">
                             {dayData.specialText}
                             {dayData.holiday?.notes && <div className="holiday-notes">{dayData.holiday.notes}</div>}
                           </div>
                         )}
-                        
+
                         {dayData.promos.map((promo, promoIndex) => (
                           <div className="card" key={promoIndex}>
-                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
+                            <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
                               {promo.text}
                             </div>
                             {promo.detail && (
-                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : ''}`}>
+                              <span className={`promo-detail ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
                                 {promo.detail}
                               </span>
                             )}
@@ -1122,6 +1151,17 @@ const App = () => {
             ))}
           </tbody>
         </table>
+        {/* Display Pay Periods below the main calendar grid */}
+        {payPeriodsData && payPeriodsData.promos && payPeriodsData.promos.length > 0 && (
+          <div className="pay-periods-container">
+            <div className="badge pay-periods">
+              {payPeriodsData.promos[0].text}
+              {payPeriodsData.promos[0].detail && (
+                <span className="promo-detail">{payPeriodsData.promos[0].detail}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Promo Copy Modal Structure */}
@@ -1159,16 +1199,15 @@ const App = () => {
             <div className="modal-title">{selectedEvent ? 'Edit Calendar Event' : 'Add New Calendar Event'}</div>
             <form onSubmit={handleAddEditEventSubmit} className="add-event-form">
               <div className="form-group">
-                <label htmlFor="eventDate">Date (1-31):</label> {/* Max 31 days */}
+                <label htmlFor="eventDate">Date (1-30):</label>
                 <input
                   type="number"
                   id="eventDate"
                   min="1"
-                  max="31"
+                  max="30"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                   required
-                  // Removed disabled attribute to allow editing date
                 />
               </div>
               <div className="form-group">
@@ -1242,18 +1281,18 @@ const App = () => {
                 setIsEditHolidayModalVisible(false);
             }}>&times;</button>
             <div className="modal-title">{selectedHoliday ? 'Edit Holiday' : 'Add New Holiday'}</div>
-            <form onSubmit={handleAddEditHolidaySubmit} className="add-event-form"> {/* Reusing add-event-form styles */}
+            <form onSubmit={handleAddEditHolidaySubmit} className="add-event-form">
               <div className="form-group">
-                <label htmlFor="holidayDate">Date (1-31):</label> {/* Max 31 days */}
+                <label htmlFor="holidayDate">Date (1-30):</label>
                 <input
                   type="number"
                   id="holidayDate"
                   min="1"
-                  max="31"
+                  max="30"
                   value={holidayDate}
                   onChange={(e) => setHolidayDate(e.target.value)}
                   required
-                  disabled={!!selectedHoliday} // Disable date editing for existing holidays
+                  disabled={!!selectedHoliday}
                 />
               </div>
               <div className="form-group">
@@ -1384,6 +1423,20 @@ const App = () => {
         <AlertModal message={alertMessage} onClose={hideAlert} />
       )}
 
+      {/* Custom Confirmation Modal */}
+      {isConfirmationModalVisible && (
+        <ConfirmationModal
+          message={confirmationMessage}
+          onConfirm={() => {
+            if (confirmationAction) {
+              confirmationAction();
+            }
+            hideConfirmation();
+          }}
+          onCancel={hideConfirmation}
+        />
+      )}
+
       {/* Styles for the React App */}
       <style>{`
         body {
@@ -1450,7 +1503,7 @@ const App = () => {
         .title-edit-save-btn:hover {
             background-color: #005a30;
         }
-        
+
         .calendar-container {
           max-width: 1200px;
           width: 100%;
@@ -1556,16 +1609,25 @@ const App = () => {
             margin-left: 20px;
             position: relative;
             flex-shrink: 0;
-            opacity: 1; /* Always visible on screen */
+            opacity: 1;
             transition: opacity 0.2s ease-in-out;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
         .edit-background-button {
             background-color: #f0f0f0;
             color: #333;
             border: 1px solid #ccc;
             border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 0.9em;
+            padding: 5px 8px;
+            font-size: 0.8em;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
         }
@@ -1576,21 +1638,31 @@ const App = () => {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            position: absolute;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            z-index: 10;
-            top: 0;
-            right: 0;
+            position: static;
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            z-index: auto;
         }
         .background-select {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 0.9em;
+        }
+        .generate-background-btn {
+            background-color: #006c3b;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .generate-background-btn:hover {
+            background-color: #005a30;
         }
         .background-save-btn {
             background-color: #c8102e;
@@ -1623,6 +1695,7 @@ const App = () => {
             padding: 5px;
             border: 1px dashed #ccc;
             border-radius: 5px;
+            background-color: rgba(255,255,255,0.7);
         }
 
 
@@ -1645,18 +1718,26 @@ const App = () => {
           border: 1px solid #ebebeb;
           background-color: #fdfdfd;
           vertical-align: top;
-          min-height: 120px; /* Adjusted to min-height */
+          min-height: 120px;
           padding: 12px;
           transition: background-color 0.2s ease-in-out;
-          position: relative; /* Essential for absolute positioning of icons */
+          position: relative;
         }
         td:hover {
             background-color: #f5f5f5;
         }
-        /* Style for empty cells */
         .empty-cell {
-            background-color: #f9f9f9 !important; /* Lighter background for empty cells */
+            background-color: #f9f9f9 !important;
         }
+        .info-only-cell .cell-content {
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        .info-only-cell .date-weather-group {
+            display: none;
+        }
+
 
         .cell-content {
             display: flex;
@@ -1669,30 +1750,29 @@ const App = () => {
         .date-weather-group {
             display: flex;
             align-items: center;
-            gap: 6px; /* Space between date and weather */
-            margin-bottom: 8px; /* Space below date/weather group */
-            position: relative; /* For holiday edit/delete icons */
-            width: 100%; /* Ensure it takes full width for positioning */
+            gap: 6px;
+            margin-bottom: 8px;
+            position: relative;
+            width: 100%;
         }
 
-        .week-label { /* Original week-label style, now unused */
+        .week-label {
           font-size: 0.68em;
           color: #999;
           margin-bottom: 4px;
         }
 
-        .date-number-wrapper { /* New wrapper for date and its background */
+        .date-number-wrapper {
             position: relative;
-            z-index: 1; /* Ensure it's above the yellow background */
-            display: inline-block; /* To make background fit content */
-            padding: 2px 4px; /* Small padding around date number */
-            border-radius: 4px; /* Slightly rounded corners */
+            z-index: 1;
+            display: inline-block;
+            padding: 2px 4px;
+            border-radius: 4px;
             transition: background-color 0.3s ease;
         }
-        /* Apply yellow background to date-number-wrapper for highlighted holidays */
         .highlight-holiday-cell .date-number-wrapper {
-            background-color: #FFD700; /* Yellow background */
-            border: 1px solid #DAA520; /* Darker yellow border */
+            background-color: #FFD700;
+            border: 1px solid #DAA520;
         }
 
         .date-number {
@@ -1701,10 +1781,10 @@ const App = () => {
           color: #222;
         }
         .weather {
-          font-family: 'Montserrat', sans-serif; /* Applied Montserrat font */
-          font-size: 1.0em; /* Slightly larger */
-          font-weight: 700; /* Bolder */
-          color: #444; /* Darker color for better readability */
+          font-family: 'Montserrat', sans-serif;
+          font-size: 1.0em;
+          font-weight: 700;
+          color: #444;
         }
 
         .badge {
@@ -1731,19 +1811,17 @@ const App = () => {
           background-color: #e8f5e8;
           color: #006c3b;
         }
-        /* New style for special text badge (Father's Day, Juneteenth) */
         .badge.special-text-badge {
             background: rgba(255,255,255,0.2);
             color: #fff;
-            box-shadow: none; /* No extra shadow for these */
-            border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
-            margin-bottom: 8px; /* Space below this badge */
-            padding: 6px 10px; /* Slightly smaller padding */
-            position: relative; /* For holiday edit/delete icons */
+            box-shadow: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            position: relative;
         }
-        /* New style for the monthly offer badge */
         .badge.monthly-offer {
-            background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%); /* Red gradient */
+            background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%);
             color: #fff;
             font-size: 1em;
             font-weight: 700;
@@ -1754,9 +1832,20 @@ const App = () => {
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             border: 2px solid #a00d27;
         }
-        .badge.monthly-offer .promo-detail { /* Make detail white for this badge */
+        .badge.monthly-offer .promo-detail {
             color: #fff;
             font-weight: 600;
+        }
+        .badge.pay-periods {
+            background-color: #e6f7ff;
+            color: #0056b3;
+            border: 1px solid #99d6ff;
+            font-weight: 600;
+            font-size: 0.85em;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-top: 0;
+            line-height: 1.3;
         }
 
 
@@ -1769,12 +1858,11 @@ const App = () => {
           border: 1px solid #f0f0f0;
           width: 100%;
           box-sizing: border-box;
-          position: relative; /* Needed for absolute positioning of star */
+          position: relative;
         }
         .card:first-of-type {
-            margin-top: 0; /* No top top-margin for the first card in a cell */
+            margin-top: 0;
         }
-        /* Ensure spacing between multiple cards in a cell */
         .cell-content .card + .card {
             margin-top: 8px;
         }
@@ -1793,7 +1881,7 @@ const App = () => {
         .promo-detail.rmp50 {
             color: #00502a;
         }
-        .holiday-notes { /* Style for holiday notes */
+        .holiday-notes {
             font-size: 0.65em;
             color: #666;
             margin-top: 3px;
@@ -1802,51 +1890,46 @@ const App = () => {
         }
 
         /* Holiday Cell Backgrounds */
-        /* These classes are applied to the <td> elements */
-        .special-day { /* Default for P6 Wk3, if it's not a specific holiday */
+        .special-day {
             background-color: #fffbf0;
             border: 2px solid #f9e0a0;
         }
         .special-fathers-day {
-            background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%); /* Lighter, more distinct blue */
-            border: 2px solid #4682B4; /* SteelBlue border */
-            color: #333; /* Darker text for better readability */
+            background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%);
+            border: 2px solid #4682B4;
+            color: #333;
         }
         .special-juneteenth {
-            background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%); /* Tomato, Gold, SkyBlue */
-            border: 2px solid #DC143C; /* Crimson border */
-            color: #333; /* Darker text for contrast */
+            background: linear-gradient(135deg, #FF6347 0%, #FFD700 50%, #87CEEB 100%);
+            border: 2px solid #DC143C;
+            color: #333;
         }
-        .custom-holiday { /* New custom holiday background */
-            background: linear-gradient(135deg, #E0FFFF 0%, #87CEFA 100%); /* Light Cyan to Light Sky Blue */
-            border: 2px solid #4169E1; /* RoyalBlue border */
-            color: #333; /* Darker text for contrast */
+        .custom-holiday {
+            background: linear-gradient(135deg, #E0FFFF 0%, #87CEFA 100%);
+            border: 2px solid #4169E1;
+            color: #333;
         }
-        /* Highlighted holiday cell styling */
         .highlight-holiday-cell {
-            /* This class is added to the td, its background will be the holiday gradient */
-            /* The yellow highlight is now on .date-number-wrapper and .special-text-badge text */
         }
         .highlight-holiday-cell .date-number,
         .highlight-holiday-cell .special-text-badge {
-            color: #333 !important; /* Darker text for readability on yellow highlight */
+            color: #333 !important;
             font-weight: bold !important;
-            text-shadow: none !important; /* Remove text shadow */
+            text-shadow: none !important;
         }
-        /* Specific text color for highlighted holiday badge */
         .highlight-holiday-cell .special-text-badge {
-            background-color: #FFD700 !important; /* Solid yellow background for badge */
-            border-color: #DAA520 !important; /* Darker yellow border for badge */
-            color: #333 !important; /* Ensure text is dark on yellow */
+            background-color: #FFD700 !important;
+            border-color: #DAA520 !important;
+            color: #333 !important;
         }
 
 
-        .logo { 
-            text-align: center; 
+        .logo {
+            text-align: center;
             margin-bottom: 15px;
             padding-top: 5px;
         }
-        .logo img { 
+        .logo img {
             height: 30px;
             width: auto;
             max-width: 100%;
@@ -1864,15 +1947,15 @@ const App = () => {
         /* All icons that should be hidden by default */
         .date-weather-group .edit-icon,
         .date-weather-group .delete-icon,
-        .date-weather-group .holiday-edit-icon, /* Ensure these specific icons are targeted */
-        .date-weather-group .holiday-delete-icon, /* Ensure these specific icons are targeted */
+        .date-weather-group .holiday-edit-icon,
+        .date-weather-group .holiday-delete-icon,
         .card .edit-icon,
         .card .delete-icon,
         .card .generate-promo-star,
-        .title-edit-icon, /* Title edit icon also hidden by default */
-        .banner-edit-icon, /* Banner edit icon also hidden by default */
-        .digital-offers-edit-icon { /* Digital offers edit icon hidden by default */
-          opacity: 0; 
+        .title-edit-icon,
+        .banner-edit-icon,
+        .digital-offers-edit-icon {
+          opacity: 0;
           transition: opacity 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
 
@@ -1881,13 +1964,13 @@ const App = () => {
         td:hover .date-weather-group .delete-icon,
         td:hover .date-weather-group .holiday-edit-icon,
         td:hover .date-weather-group .holiday-delete-icon {
-            opacity: 1; /* Fully visible on td hover */
+            opacity: 1;
         }
         /* Show card-level icons on card hover */
         .card:hover .edit-icon,
         .card:hover .delete-icon,
         .card:hover .generate-promo-star {
-            opacity: 1; /* Fully visible on card hover */
+            opacity: 1;
         }
         /* Show title edit icon on h1 hover */
         h1:hover .title-edit-icon {
@@ -1915,19 +1998,21 @@ const App = () => {
         .edit-background-button:active {
             transform: scale(0.95);
         }
-        
+
         /* Positioning of icons within cells */
         .card .edit-icon {
-            top: 4px; 
+            position: absolute;
+            top: 4px;
             right: 28px;
             color: #007bff;
         }
         .card .delete-icon {
-            top: 4px; 
+            position: absolute;
+            top: 4px;
             right: 50px;
             color: #dc3545;
         }
-        .generate-promo-star { /* Keep original position */
+        .generate-promo-star {
           position: absolute;
           top: 4px;
           right: 6px;
@@ -1939,26 +2024,26 @@ const App = () => {
           background-color: transparent;
         }
         .day-edit-icon {
-            position: absolute; /* Ensure these are also absolutely positioned */
-            top: 0px; 
+            position: absolute;
+            top: 0px;
             right: 24px;
             color: #007bff;
         }
         .day-delete-icon {
             position: absolute;
-            top: 0px; 
+            top: 0px;
             right: 2px;
             color: #dc3545;
         }
         .holiday-edit-icon {
             position: absolute;
-            top: 24px; 
+            top: 24px;
             right: 24px;
             color: #007bff;
         }
         .holiday-delete-icon {
             position: absolute;
-            top: 24px; 
+            top: 24px;
             right: 2px;
             color: #dc3545;
         }
@@ -1977,6 +2062,23 @@ const App = () => {
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             border: 1px solid #d0dbe8;
         }
+
+        /* Pay Periods Container */
+        .pay-periods-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff; /* Light blue background */
+            border: 1px solid #aaddff;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .pay-periods-container .badge {
+            display: inline-block; /* Make it fit content */
+            width: auto; /* Override 100% width from general badge */
+            margin-bottom: 5px;
+        }
+
 
         /* Modal styles */
         .modal-overlay {
@@ -2067,26 +2169,88 @@ const App = () => {
           60%, 100% { content: '...'; }
         }
 
+        /* Form styles */
+        .add-event-form .form-group {
+            margin-bottom: 15px;
+        }
+        .add-event-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        .add-event-form input[type="text"],
+        .add-event-form input[type="number"],
+        .add-event-form textarea,
+        .add-event-form select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .add-event-form .color-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        .add-event-form .color-options label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: normal;
+            color: #333;
+        }
+        .add-event-form .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .add-event-form .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .submit-event-btn, .copy-to-clipboard-btn, .cancel-btn {
+            background-color: #c8102e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .submit-event-btn:hover, .copy-to-clipboard-btn:hover {
+            background-color: #a00d27;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+        }
+        .cancel-btn:hover {
+            background-color: #5a6268;
+        }
+
+
         /* Print Styles */
         @media print {
             @page {
-                size: landscape; /* Set page to landscape */
-                margin: 0.2in; /* Reduced margin for more space */
+                size: landscape;
+                margin: 0.2in;
             }
             body {
-                background-color: #fff; /* White background for print */
+                background-color: #fff;
                 padding: 0;
                 margin: 0;
-                display: block; /* Override flex for print */
+                display: block;
                 width: 100%;
                 height: auto;
-                font-size: 10pt; /* Base font size for print */
+                font-size: 10pt;
             }
             .add-event-controls,
-            .modal-overlay { /* Hide modals */
+            .modal-overlay {
                 display: none !important;
             }
-            /* Explicitly hide all icons that should not be in print */
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
@@ -2095,31 +2259,30 @@ const App = () => {
             .title-edit-icon,
             .title-edit-container,
             .title-edit-save-btn,
-            .background-selection-controls { /* Hide background selection controls in print */
-                display: none !important; /* Hide all interactive/non-print elements */
+            .background-selection-controls {
+                display: none !important;
             }
-            /* Ensure the header icons (sun and graduation cap) are visible */
             .header-icon {
-                display: inline-block !important; /* Make visible */
-                width: 30px !important; /* Increased size for print */
+                display: inline-block !important;
+                width: 30px !important;
                 height: 30px !important;
-                margin: 0 8px !important; /* Adjust spacing */
+                margin: 0 8px !important;
                 vertical-align: middle !important;
                 print-color-adjust: exact;
             }
 
-            .logo { 
+            .logo {
                 display: block !important;
                 text-align: center !important;
-                margin-bottom: 5px !important; /* Reduced margin */
+                margin-bottom: 5px !important;
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 18px !important; 
+                height: 18px !important;
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
-                filter: grayscale(50%); /* Slightly desaturate for ink saving */
+                filter: grayscale(50%);
             }
 
             .calendar-container {
@@ -2129,70 +2292,69 @@ const App = () => {
                 width: 100%;
                 border-radius: 0;
                 overflow: visible;
-                background: #fff; /* White background for print */
-                print-color-adjust: exact; /* Force color printing for container */
+                background: #fff;
+                print-color-adjust: exact;
             }
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 1px solid #888;
-                padding: 0.3rem 0; /* Adjusted padding */
+                padding: 0.3rem 0;
                 border-radius: 0;
-                background-color: #f0f0f0; /* Light grey background for header */
-                background-image: url(${getMonthPlaceholderUrl('june')}) !important; /* Force June background for print */
+                background-color: #f0f0f0;
+                background-image: url(${headerBackgroundUrl}) !important;
                 background-size: cover !important;
                 background-position: center !important;
                 print-color-adjust: exact;
-                flex-wrap: nowrap !important; /* Prevent wrapping in header for print */
-                justify-content: space-between !important; /* Distribute items */
+                flex-wrap: nowrap !important;
+                justify-content: space-between !important;
                 align-items: center !important;
-                padding-left: 8px !important; /* Add some padding */
+                padding-left: 8px !important;
                 padding-right: 8px !important;
             }
             h1 {
-                font-size: 1.8em !important; /* FURTHER Increased font size for title */
-                font-weight: 900 !important; /* Make bolder */
-                margin-bottom: 0.05em !important; /* Reduced margin */
+                font-size: 1.8em !important;
+                font-weight: 900 !important;
+                margin-bottom: 0.05em !important;
                 color: #000 !important;
                 text-shadow: none;
                 cursor: default;
                 print-color-adjust: exact;
-                flex-grow: 1; /* Allow title to take available space */
-                text-align: center; /* Center the title */
+                flex-grow: 1;
+                text-align: center;
             }
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 5px 8px; /* Adjusted padding */
-                margin-bottom: 5px; /* Reduced margin */
-                background-color: #c0c0c0; /* Slightly darker grey for banner in print */
+                padding: 5px 8px;
+                margin-bottom: 5px;
+                background-color: #c0c0c0;
                 color: #000;
                 border-bottom: 1px solid #888;
-                font-size: 1em !important; /* Increased font size for banner */
-                font-weight: 700 !important; /* Make bolder */
+                font-size: 1em !important;
+                font-weight: 700 !important;
                 print-color-adjust: exact;
             }
-            /* Digital Offers Box for Print */
             .digital-offers-box {
-                display: block !important; /* Make it visible */
-                flex-shrink: 1 !important; /* Allow shrinking */
-                min-width: unset !important; /* Remove min-width constraint */
-                max-width: 200px !important; /* Constrain max width for print */
-                margin-left: 15px !important; /* Adjust margin */
-                padding: 8px 12px !important; /* Adjust padding for print */
+                display: block !important;
+                flex-shrink: 1 !important;
+                min-width: unset !important;
+                max-width: 200px !important;
+                margin-left: 15px !important;
+                padding: 8px 12px !important;
                 box-shadow: none !important;
                 border: 1px solid #888 !important;
                 print-color-adjust: exact;
             }
             .digital-offers-title {
-                font-size: 1.2em !important; /* Increased font size for print */
-                font-weight: 900 !important; /* Make bolder */
+                font-size: 1.2em !important;
+                font-weight: 900 !important;
                 margin-bottom: 3px !important;
                 color: #c8102e !important;
                 text-transform: uppercase !important;
                 print-color-adjust: exact;
             }
             .digital-offers-text {
-                font-size: 0.9em !important; /* Increased font size for print */
+                font-size: 0.9em !important;
                 line-height: 1.3 !important;
                 color: #333 !important;
                 print-color-adjust: exact;
@@ -2207,8 +2369,8 @@ const App = () => {
             th {
                 background-color: #f8f8f8;
                 border: 1px solid #888;
-                padding: 5px 3px; /* Adjusted padding */
-                font-size: 1em !important; /* Increased font size */
+                padding: 5px 3px;
+                font-size: 1em !important;
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
@@ -2216,20 +2378,27 @@ const App = () => {
             }
             td {
                 border: 1px solid #888;
-                height: auto; /* Allow height to adapt */
-                min-height: 65px; /* Adjusted min height for cells */
-                padding: 4px; /* Adjusted padding */
+                height: auto;
+                min-height: 65px;
+                padding: 4px;
                 display: table-cell;
                 vertical-align: top;
-                page-break-inside: avoid; /* Prevents cell content from splitting */
-                background-color: #fdfdfd !important; /* Force light background for print cells */
-                print-color-adjust: exact; /* Force color printing */
+                page-break-inside: avoid;
+                background-color: #fdfdfd !important;
+                print-color-adjust: exact;
             }
-            /* Specific badge backgrounds for print - force their original colors */
             .badge.two-dollar { background-color: #ffe8eb !important; color: #c8102e !important; print-color-adjust: exact; }
             .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
             .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
             .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
+            .badge.pay-periods {
+                background-color: #e6f7ff !important;
+                color: #0056b3 !important;
+                border: 1px solid #99d6ff !important;
+                font-weight: 700 !important;
+                font-size: 0.8em !important;
+                print-color-adjust: exact;
+            }
 
 
             .cell-content {
@@ -2244,12 +2413,11 @@ const App = () => {
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 1px; /* Reduced gap */
-                margin-bottom: 3px; /* Reduced margin */
+                gap: 1px;
+                margin-bottom: 3px;
                 position: relative;
                 width: 100%;
             }
-            /* Holiday date background in print */
             .date-number-wrapper {
                 background-color: transparent;
                 border: none;
@@ -2260,55 +2428,54 @@ const App = () => {
             .highlight-holiday-cell .date-number-wrapper {
                 background-color: #FFD700 !important;
                 border: 1px solid #DAA520 !important;
-                padding: 1px 2px; /* Reduced padding */
+                padding: 1px 2px;
                 border-radius: 2px;
                 print-color-adjust: exact;
             }
             .date-number {
-                font-size: 1.1em !important; /* Increased font size */
+                font-size: 1.1em !important;
                 color: #000;
                 font-weight: 700;
                 print-color-adjust: exact;
             }
             .weather {
-                font-size: 0.95em !important; /* Increased weather font size */
-                font-weight: 700 !important; /* Make bolder */
+                font-size: 0.95em !important;
+                font-weight: 700 !important;
                 color: #555;
                 print-color-adjust: exact;
             }
             .badge {
-                padding: 3px 5px; /* Adjusted padding */
-                font-size: 0.8em !important; /* Increased font size */
+                padding: 3px 5px;
+                font-size: 0.8em !important;
                 box-shadow: none;
                 border: 1px solid #991;
-                /* Background and color adjustments handled above */
                 page-break-inside: avoid;
-                margin-bottom: 2px; /* Adjusted margin */
+                margin-bottom: 2px;
                 print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
-                padding: 3px; /* Adjusted padding */
-                margin-top: 3px; /* Adjusted margin */
+                padding: 3px;
+                margin-top: 3px;
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.7em !important; /* Increased promo detail font size */
-                margin-top: 1px; /* Reduced margin */
+                font-size: 0.7em !important;
+                margin-top: 1px;
                 color: #666;
                 print-color-adjust: exact;
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.7em !important; /* Increased font size */
-                padding: 2px 5px; /* Adjusted padding */
+                font-size: 0.7em !important;
+                padding: 2px 5px;
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 3px; /* Adjusted margin */
+                margin-top: 3px;
                 align-self: flex-start;
                 print-color-adjust: exact;
             }
@@ -2346,10 +2513,10 @@ const App = () => {
             .card .promo-detail {
                 font-size: 0.55em;
             }
-            .logo img { 
+            .logo img {
                 height: 20px;
             }
-            .header-icon { 
+            .header-icon {
                 width: 25px;
                 height: 25px;
                 margin: 0 5px;
