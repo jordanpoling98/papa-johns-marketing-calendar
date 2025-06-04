@@ -64,7 +64,7 @@ const initialCalendarData = [
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
   // Adding July days and Monthly Offer Block
   // Modified July 2nd to remove date and weather for pay periods display
-  { date: null, day: 'Wed', weather: { high: null, condition: null, icon: '❓' }, promos: [ // Changed weather to an object with null values
+  { date: null, day: 'Wed', weather: { high: null, condition: null, icon: null }, promos: [ // Changed weather to an object with null values for high/condition/icon
     { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
   ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
   { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025 (moved after July 2nd for now, will re-sort)
@@ -1005,9 +1005,9 @@ const App = () => {
                               </div>
                             </div>
                           )}
-                          {dayData.weather?.icon !== null && ( // Only render weather if not null and icon exists
+                          {dayData.weather?.icon && dayData.weather?.high !== null && ( // Only render weather if not null and icon exists
                             <div className="weather">
-                              {dayData.weather?.icon} {dayData.weather?.high}°
+                              {dayData.weather.icon} {dayData.weather.high}°
                             </div>
                           )}
                           {/* Edit/Delete Day Icons */}
