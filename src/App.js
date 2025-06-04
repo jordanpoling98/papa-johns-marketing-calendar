@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';More actions
 // Import Firebase modules
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -6,10 +6,10 @@ import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // Define a helper function to get weather icon based on weather condition
 const getWeatherIcon = (condition) => {
-  const lowerCaseCondition = condition?.toLowerCase(); // Use optional chaining
-  if (lowerCaseCondition?.includes('sunny') || lowerCaseCondition?.includes('clear')) return '☀️';
-  if (lowerCaseCondition?.includes('cloudy') || lowerCaseCondition?.includes('overcast')) return '☁️';
-  if (lowerCaseCondition?.includes('rain') || lowerCaseCondition?.includes('shower') || lowerCaseCondition?.includes('storm')) return '🌧️';
+  const lowerCaseCondition = condition.toLowerCase();
+  if (lowerCaseCondition.includes('sunny') || lowerCaseCondition.includes('clear')) return '☀️';
+  if (lowerCaseCondition.includes('cloudy') || lowerCaseCondition.includes('overcast')) return '☁️';
+  if (lowerCaseCondition.includes('rain') || lowerCaseCondition.includes('shower') || lowerCaseCondition.includes('storm')) return '🌧️';
   return '❓'; // Default unknown weather
 };
 
@@ -64,7 +64,7 @@ const initialCalendarData = [
   { date: 30, day: 'Mon', weather: { high: 80, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], weekLabel: 'P7 Wk3', holiday: null },
   // Adding July days and Monthly Offer Block
   // Modified July 2nd to remove date and weather for pay periods display
-  { date: null, day: 'Wed', weather: { high: null, condition: null, icon: null }, promos: [ // Changed weather to an object with null values for high/condition/icon
+  { date: null, day: 'Wed', weather: null, promos: [
     { id: 'pay-periods', type: 'pay-periods', text: 'Pay Periods', detail: '5/19-6/1, 6/2-6/15, 6/16-6/29' }
   ], holiday: null, weekLabel: '' }, // July 2nd, 2025 with Pay Periods
   { date: 1, day: 'Tue', weather: { high: 78, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' }, // July 1st, 2025 (moved after July 2nd for now, will re-sort)
@@ -244,7 +244,7 @@ const App = () => {
       const calendarDocRef = doc(db, `artifacts/${appId}/calendarData/juneCalendar`);
       const offersDocRef = doc(db, `artifacts/${appId}/digitalOffers/currentMonth`);
       const backgroundDocRef = doc(db, `artifacts/${appId}/calendarSettings/background`);
-      
+
       const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const fetchedData = docSnap.data().data; // 'data' field holds the array
@@ -431,9 +431,9 @@ const App = () => {
   const openEditDayModal = (dayData) => { // Changed parameter name to dayData to avoid conflict
     if (dayData) {
       setEditDayDate(dayData.date); 
-      setEditDayWeatherHigh(dayData.weather?.high || ''); // Safely access high
+      setEditDayWeatherHigh(dayData.weather.high);
       setEditDayWeekLabel(dayData.weekLabel || '');
-      setEditDayWeatherCondition(dayData.weather?.condition || ''); // Safely access condition
+      setEditDayWeatherCondition(dayData.weather.condition || ''); // Set initial weather condition
       setSelectedDayData(dayData); // Store the entire day object for context
       setIsEditDayModalVisible(true);
     }
@@ -502,7 +502,7 @@ const App = () => {
       };
       targetDay.promos.push(newPromo);
     }
-    
+
     // Update the calendar with the modified target day
     if (targetDayIndex !== -1) {
         updatedCalendar[targetDayIndex] = targetDay;
@@ -550,7 +550,7 @@ const App = () => {
         } else {
           specialDayClass = 'custom-holiday'; // Generic custom holiday background
         }
-        
+
         return {
           ...day,
           holiday: updatedHoliday,
@@ -644,7 +644,8 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     if (window.confirm(`Are you sure you want to clear all content for day ${dayDate}?`)) {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { 
+            if (day.date === dayData) { // BUG: This should be day.date === dayDate
+            if (day.date === dayDate) { // Fix: Changed dayData to dayDate
                 return {
                     ...day,
                     promos: [],
@@ -747,6 +748,7 @@ const App = () => {
         throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
       }
 
+      const result = await result.json();
       const result = await response.json(); // Corrected: was `result.json()`
 
       if (result.candidates && result.candidates.length > 0 &&
@@ -874,7 +876,7 @@ const App = () => {
       <div className="logo">
         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Papa_Johns_logo.svg/2560px-Papa_Johns_logo.svg.png" alt="Papa John's Logo" />
       </div>
-      
+
       {/* Removed User ID display */}
 
       {/* New: Add Event Controls */}
@@ -994,6 +996,7 @@ const App = () => {
             {weeks.map((week, weekIndex) => (
               <tr key={weekIndex}>
                 {week.map((dayData, dayIndex) => (
+                  <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
                   <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''} ${dayData.date === null ? 'info-only-cell' : ''}`}> {/* Added info-only-cell class */}
                     {dayData ? (
                       <div className="cell-content">
@@ -1005,7 +1008,7 @@ const App = () => {
                               </div>
                             </div>
                           )}
-                          {dayData.weather?.icon && dayData.weather?.high !== null && ( // Only render weather if not null and icon exists
+                          {dayData.weather !== null && ( // Only render weather if not null
                             <div className="weather">
                               {dayData.weather.icon} {dayData.weather.high}°
                             </div>
@@ -1057,14 +1060,14 @@ const App = () => {
                               </span>
                           )}
                         </div>
-                        
+
                         {dayData.specialText && (
                           <div className="badge special-text-badge">
                             {dayData.specialText}
                             {dayData.holiday?.notes && <div className="holiday-notes">{dayData.holiday.notes}</div>}
                           </div>
                         )}
-                        
+
                         {dayData.promos.map((promo, promoIndex) => (
                           <div className="card" key={promoIndex}>
                             <div className={`badge ${promo.type === 'two-dollar' ? 'two-dollar' : promo.type === 'rmp50' ? 'rmp50' : promo.type === 'monthly-offer' ? 'monthly-offer' : promo.type === 'pay-periods' ? 'pay-periods' : ''}`}>
@@ -1679,16 +1682,6 @@ const App = () => {
         .empty-cell {
             background-color: #f9f9f9 !important; /* Lighter background for empty cells */
         }
-        /* Style for cells with only info (no date/weather) */
-        .info-only-cell .cell-content {
-            justify-content: center; /* Center content vertically */
-            align-items: center; /* Center content horizontally */
-            height: 100%; /* Ensure it takes full height */
-        }
-        .info-only-cell .date-weather-group {
-            display: none; /* Hide date/weather group for info-only cells */
-        }
-
 
         .cell-content {
             display: flex;
@@ -1789,18 +1782,6 @@ const App = () => {
         .badge.monthly-offer .promo-detail { /* Make detail white for this badge */
             color: #fff;
             font-weight: 600;
-        }
-        /* New style for pay periods badge */
-        .badge.pay-periods {
-            background-color: #e6f7ff; /* Light blue */
-            color: #0056b3; /* Darker blue text */
-            border: 1px solid #99d6ff;
-            font-weight: 600;
-            font-size: 0.85em;
-            padding: 8px 10px;
-            border-radius: 6px;
-            margin-top: 0; /* Remove top margin if it's the only content */
-            line-height: 1.3;
         }
 
 
