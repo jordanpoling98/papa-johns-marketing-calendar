@@ -175,10 +175,23 @@ const App = () => {
   const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
 
-  // Canvas-provided globals
-  const FIREBASE_CONFIG = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const INITIAL_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+  // Canvas-provided globals (these are injected by the Canvas environment)
+  // We'll add console.log here to debug their values
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+  // Debugging logs for environment variables
+  console.log('--- Environment Variable Debugging ---');
+  console.log('Raw __firebase_config:', typeof __firebase_config === 'string' ? __firebase_config.substring(0, 50) + '...' : __firebase_config); // Log first 50 chars if string
+  console.log('Type of __firebase_config:', typeof __firebase_config);
+  console.log('Parsed firebaseConfig (keys):', Object.keys(firebaseConfig));
+  console.log('Raw __app_id:', __app_id);
+  console.log('Type of __app_id:', typeof __app_id);
+  console.log('Raw __initial_auth_token:', initialAuthToken ? initialAuthToken.substring(0, 20) + '...' : initialAuthToken); // Log first 20 chars if string
+  console.log('Type of __initial_auth_token:', typeof initialAuthToken);
+  console.log('------------------------------------');
+
 
   // API keys (Canvas will inject these at runtime)
   const GEMINI_API_KEY = "";
@@ -212,8 +225,9 @@ const App = () => {
 
   // Initialize Firebase and set up authentication
   useEffect(() => {
-    if (Object.keys(FIREBASE_CONFIG).length === 0) {
-      console.error("Firebase config is empty. Data saving will not work. Please ensure __firebase_config is set and valid JSON.");
+    // Check if firebaseConfig is truly empty after parsing attempt
+    if (Object.keys(firebaseConfig).length === 0) {
+      console.error("Firebase config is empty or invalid. Data saving will not work. Please ensure FIREBASE_CONFIG environment variable is set and valid JSON.");
       showAlert("Firebase config missing or invalid. Data saving will not work.");
       setIsAuthReady(true);
       setIsFirestoreLoading(false);
@@ -221,7 +235,7 @@ const App = () => {
     }
 
     try {
-      const app = initializeApp(FIREBASE_CONFIG);
+      const app = initializeApp(firebaseConfig);
       const firestore = getFirestore(app);
       const authentication = getAuth(app);
 
@@ -233,8 +247,8 @@ const App = () => {
           setUserId(user.uid);
         } else {
           try {
-            if (INITIAL_AUTH_TOKEN) {
-              await signInWithCustomToken(authentication, INITIAL_AUTH_TOKEN);
+            if (initialAuthToken) { // Use the local initialAuthToken variable
+              await signInWithCustomToken(authentication, initialAuthToken);
             } else {
               await signInAnonymously(authentication);
             }
@@ -253,107 +267,105 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, []); // Empty dependency array for one-time initialization
+  }, [JSON.stringify(firebaseConfig), initialAuthToken]); // Depend on stringified config and auth token
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
-    if (db && userId && isAuthReady) {
-      // Corrected Firestore paths to include /public/data/
-      const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
-      const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
-      const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
-      const payPeriodsDocRef = doc(db, `artifacts/${APP_ID}/public/data/payPeriods/june`);
+    if (!db || !userId || !isAuthReady) return;
 
-      const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const fetchedData = docSnap.data().data; // 'data' field holds the array
-          if (fetchedData) {
-            setCalendar(fetchedData);
-          } else {
-            setCalendar(initialJuneCalendarDays); // Fallback to initial if data field is empty
-          }
+    // Corrected Firestore paths to include /public/data/
+    const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`); // Use local appId variable
+    const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
+    const backgroundDocRef = doc(db, `artifacts/${appId}/public/data/calendarSettings/background`);
+    const payPeriodsDocRef = doc(db, `artifacts/${appId}/public/data/payPeriods/june`);
+
+    const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const fetchedData = docSnap.data().data; // 'data' field holds the array
+        if (fetchedData) {
+          setCalendar(fetchedData);
         } else {
-          console.log("No calendar data found, creating initial data in Firestore.");
-          setDoc(calendarDocRef, { data: initialJuneCalendarDays })
-            .then(() => setCalendar(initialJuneCalendarDays))
-            .catch(error => console.error("Error setting initial calendar document:", error));
+          setCalendar(initialJuneCalendarDays); // Fallback to initial if data field is empty
         }
-        setIsFirestoreLoading(false);
-      }, (error) => {
-        console.error("Error fetching Firestore calendar data:", error);
-        showAlert("Failed to load saved calendar data. Please check your internet connection or Firebase setup.");
-        setIsFirestoreLoading(false);
-      });
+      } else {
+        console.log("No calendar data found, creating initial data in Firestore.");
+        setDoc(calendarDocRef, { data: initialJuneCalendarDays })
+          .then(() => setCalendar(initialJuneCalendarDays))
+          .catch(error => console.error("Error setting initial calendar document:", error));
+      }
+      setIsFirestoreLoading(false);
+    }, (error) => {
+      console.error("Error fetching Firestore calendar data:", error);
+      showAlert("Failed to load saved calendar data. Please check your internet connection or Firebase setup.");
+      setIsFirestoreLoading(false);
+    });
 
-      const unsubscribeOffers = onSnapshot(offersDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().offerText) {
-          setDigitalOffersText(docSnap.data().offerText);
-        } else {
-          console.log("No digital offers data found, setting initial offer.");
-          setDoc(offersDocRef, { offerText: initialDigitalOffersText })
-            .then(() => setDigitalOffersText(initialDigitalOffersText))
-            .catch(error => console.error("Error setting initial offers document:", error));
+    const unsubscribeOffers = onSnapshot(offersDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().offerText) {
+        setDigitalOffersText(docSnap.data().offerText);
+      } else {
+        console.log("No digital offers data found, setting initial offer.");
+        setDoc(offersDocRef, { offerText: initialDigitalOffersText })
+          .then(() => setDigitalOffersText(initialDigitalOffersText))
+          .catch(error => console.error("Error setting initial offers document:", error));
+      }
+    }, (error) => {
+      console.error("Error fetching digital offers data:", error);
+    });
+
+    const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.prompt) {
+          setBackgroundPrompt(data.prompt);
         }
-      }, (error) => {
-        console.error("Error fetching digital offers data:", error);
-      });
-
-      const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.prompt) {
-            setBackgroundPrompt(data.prompt);
-          }
-          if (data.generatedUrl) {
-            setGeneratedBackgroundUrl(data.generatedUrl);
-          } else if (data.prompt) {
-            generateImageBackground(data.prompt);
-          } else {
-            console.log("No background setting found, defaulting and generating image.");
-            const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
-            setBackgroundPrompt(defaultPrompt);
-            generateImageBackground(defaultPrompt);
-          }
+        if (data.generatedUrl) {
+          setGeneratedBackgroundUrl(data.generatedUrl);
+        } else if (data.prompt) {
+          generateImageBackground(data.prompt);
         } else {
           console.log("No background setting found, defaulting and generating image.");
           const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
           setBackgroundPrompt(defaultPrompt);
           generateImageBackground(defaultPrompt);
         }
-      }, (error) => {
-        console.error("Error fetching background setting:", error);
-      });
+      } else {
+        console.log("No background setting found, defaulting and generating image.");
+        const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
+        setBackgroundPrompt(defaultPrompt);
+        generateImageBackground(defaultPrompt);
+      }
+    }, (error) => {
+      console.error("Error fetching background setting:", error);
+    });
 
-      const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().data) {
-          setPayPeriodsData(docSnap.data().data);
-        } else {
-          console.log("No pay periods data found, setting initial pay periods.");
-          setDoc(payPeriodsDocRef, { data: initialPayPeriodsData })
-            .then(() => setPayPeriodsData(initialPayPeriodsData))
-            .catch(error => console.error("Error setting initial pay periods document:", error));
-        }
-      }, (error) => {
-        console.error("Error fetching pay periods data:", error);
-      });
+    const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().data) {
+        setPayPeriodsData(docSnap.data().data);
+      } else {
+        console.log("No pay periods data found, setting initial pay periods.");
+        setDoc(payPeriodsDocRef, { data: initialPayPeriodsData })
+          .then(() => setPayPeriodsData(initialPayPeriodsData))
+          .catch(error => console.error("Error setting initial pay periods document:", error));
+      }
+    }, (error) => {
+      console.error("Error fetching pay periods data:", error);
+    });
 
 
-      return () => {
-        unsubscribeCalendar(); // Cleanup calendar listener
-        unsubscribeOffers(); // Cleanup offers listener
-        unsubscribeBackground(); // Cleanup background listener
-        unsubscribePayPeriods(); // Cleanup pay periods listener
-      };
-    } else if (isAuthReady && !userId) {
-      setIsFirestoreLoading(false);
-    }
-  }, [db, userId, isAuthReady, APP_ID]); // Re-run when db, userId, or authReady changes
+    return () => {
+      unsubscribeCalendar(); // Cleanup calendar listener
+      unsubscribeOffers(); // Cleanup offers listener
+      unsubscribeBackground(); // Cleanup background listener
+      unsubscribePayPeriods(); // Cleanup pay periods listener
+    };
+  }, [db, userId, isAuthReady, appId]); // Depend on db, userId, isAuthReady, and appId
 
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
     if (db && userId) {
       try {
-        const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
+        const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
         console.log("Calendar data saved to Firestore!");
       } catch (error) {
@@ -369,7 +381,7 @@ const App = () => {
   const updateDigitalOffersInFirestore = async (newText) => {
     if (db && userId) {
       try {
-        const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
+        const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
         await setDoc(offersDocRef, { offerText: newText });
         console.log("Digital offers saved to Firestore!");
       } catch (error) {
@@ -385,7 +397,7 @@ const App = () => {
   const updateSelectedBackgroundInFirestore = async (prompt, generatedUrl = null) => {
     if (db && userId) {
       try {
-        const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
+        const backgroundDocRef = doc(db, `artifacts/${appId}/public/data/calendarSettings/background`);
         const dataToSave = { prompt: prompt };
         if (generatedUrl) {
           dataToSave.generatedUrl = generatedUrl;
