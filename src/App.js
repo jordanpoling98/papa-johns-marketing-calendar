@@ -363,10 +363,8 @@ const App = () => {
 
   // This function is no longer needed as background is static.
   // We'll keep it as a no-op or remove it if not needed.
-  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
   };
 
 
