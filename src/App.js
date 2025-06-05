@@ -170,23 +170,26 @@ const App = () => {
   // Fixed background image URL
   const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atxI3tVnDWoZCjsU8=';
 
-  // Canvas-provided globals
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+  // Access environment variables directly from process.env
+  // Vercel injects these as process.env.VAR_NAME during build time
+  const FIREBASE_CONFIG_ENV = process.env.FIREBASE_CONFIG;
+  const APP_ID_ENV = process.env.APP_ID || 'default-app-id';
+  const INITIAL_AUTH_TOKEN_ENV = process.env.INITIAL_AUTH_TOKEN || null;
 
-  // Debugging logs for environment variables
-  console.log('--- Environment Variable Debugging ---');
-  console.log('Raw __firebase_config:', typeof __firebase_config === 'string' ? __firebase_config.substring(0, 50) + '...' : __firebase_config); // Log first 50 chars if string
-  console.log('Type of __firebase_config:', typeof __firebase_config);
-  console.log('Parsed firebaseConfig (keys):', Object.keys(firebaseConfig));
-  console.log('Raw __app_id:', __app_id);
-  console.log('Type of __app_id:', typeof __app_id);
-  console.log('Raw __initial_auth_token:', initialAuthToken ? initialAuthToken.substring(0, 20) + '...' : initialAuthToken); // Log first 20 chars if string
-  console.log('Type of __initial_auth_token:', typeof initialAuthToken);
-  console.log('------------------------------------');
+  // Parse Firebase config from environment variable
+  let firebaseConfig = {};
+  try {
+    if (FIREBASE_CONFIG_ENV) {
+      firebaseConfig = JSON.parse(FIREBASE_CONFIG_ENV);
+    }
+  } catch (e) {
+    console.error("Error parsing FIREBASE_CONFIG environment variable:", e);
+    // This will trigger the showAlert in useEffect
+  }
 
-  // API keys (Canvas will inject these at runtime)
+  // API keys (Canvas will inject these at runtime, or they can be set via process.env)
+  // For Gemini and Imagen, we'll keep them as empty strings for Canvas to inject,
+  // but if you were setting them via Vercel env vars, you'd use process.env.GEMINI_API_KEY etc.
   const GEMINI_API_KEY = "";
   const IMAGEN_API_KEY = "";
 
@@ -240,8 +243,8 @@ const App = () => {
           setUserId(user.uid);
         } else {
           try {
-            if (initialAuthToken) { // Use the local initialAuthToken variable
-              await signInWithCustomToken(authentication, initialAuthToken);
+            if (INITIAL_AUTH_TOKEN_ENV) { // Use the environment variable for auth token
+              await signInWithCustomToken(authentication, INITIAL_AUTH_TOKEN_ENV);
             } else {
               await signInAnonymously(authentication);
             }
@@ -260,17 +263,16 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, [JSON.stringify(firebaseConfig), initialAuthToken]); // Depend on stringified config and auth token
+  }, [JSON.stringify(firebaseConfig), INITIAL_AUTH_TOKEN_ENV]); // Depend on stringified config and auth token env
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
     if (!db || !userId || !isAuthReady) return;
 
-    // Corrected Firestore paths to include /public/data/
-    const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`); // Use local appId variable
-    const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
-    // Removed backgroundDocRef
-    const payPeriodsDocRef = doc(db, `artifacts/${appId}/public/data/payPeriods/june`);
+    // Corrected Firestore paths to include /public/data/ and use APP_ID_ENV
+    const calendarDocRef = doc(db, `artifacts/${APP_ID_ENV}/public/data/calendarData/juneCalendar`);
+    const offersDocRef = doc(db, `artifacts/${APP_ID_ENV}/public/data/digitalOffers/currentMonth`);
+    const payPeriodsDocRef = doc(db, `artifacts/${APP_ID_ENV}/public/data/payPeriods/june`);
 
     const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -306,7 +308,6 @@ const App = () => {
       console.error("Error fetching digital offers data:", error);
     });
 
-    // Removed unsubscribeBackground
     const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().data) {
         setPayPeriodsData(docSnap.data().data);
@@ -324,16 +325,15 @@ const App = () => {
     return () => {
       unsubscribeCalendar(); // Cleanup calendar listener
       unsubscribeOffers(); // Cleanup offers listener
-      // Removed unsubscribeBackground()
       unsubscribePayPeriods(); // Cleanup pay periods listener
     };
-  }, [db, userId, isAuthReady, appId]); // Depend on db, userId, isAuthReady, and appId
+  }, [db, userId, isAuthReady, APP_ID_ENV]); // Depend on db, userId, isAuthReady, and APP_ID_ENV
 
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
     if (db && userId) {
       try {
-        const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`);
+        const calendarDocRef = doc(db, `artifacts/${APP_ID_ENV}/public/data/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
         console.log("Calendar data saved to Firestore!");
       } catch (error) {
@@ -349,7 +349,7 @@ const App = () => {
   const updateDigitalOffersInFirestore = async (newText) => {
     if (db && userId) {
       try {
-        const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
+        const offersDocRef = doc(db, `artifacts/${APP_ID_ENV}/public/data/digitalOffers/currentMonth`);
         await setDoc(offersDocRef, { offerText: newText });
         console.log("Digital offers saved to Firestore!");
       } catch (error) {
@@ -361,13 +361,13 @@ const App = () => {
     }
   };
 
-  // Function to update selected background in Firestore (now simplified as no generation)
-  // This function is no longer needed as background is static, or could be used
-  // to simply save the static URL if that needed to be persisted.
-  // For now, we'll keep it as a no-op or remove it if not needed.
-  // const updateSelectedBackgroundInFirestore = async () => {
-  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
-  // };
+  // This function is no longer needed as background is static.
+  // We'll keep it as a no-op or remove it if not needed.
+  // It was previously declared twice, so ensuring it's only here once.
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
 
 
   // Function to open Add Event modal
@@ -387,7 +387,6 @@ const App = () => {
     setHolidayNotes('');
     setHolidayHighlight(false);
     setSelectedHoliday(null);
-    // Removed background suggestion related state clearing
     setIsAddHolidayModalVisible(true);
   };
 
@@ -416,7 +415,6 @@ const App = () => {
       setHolidayNotes(day.holiday.notes || '');
       setHolidayHighlight(day.holiday.highlight || false);
       setSelectedHoliday({ dayDate, id: day.holiday.id });
-      // Removed background suggestion related state clearing
       setIsEditHolidayModalVisible(true);
     }
   };
@@ -481,7 +479,7 @@ const App = () => {
       // If the event was moved to a new day, ensure it's added if it wasn't already there
       if (oldDayDate !== newDayDate && !targetDay.promos.some(p => p.id === selectedEvent.promoId)) {
           targetDay.promos.push({
-              id: selectedEvent.promoId,
+              id: selectedEvent.id, // Use selectedEvent.id to ensure consistent ID after move
               type: eventColor,
               text: eventTitle.trim(),
               detail: eventPromoCode.trim() || undefined
