@@ -118,8 +118,6 @@ const App = () => {
   const [selectedDayData, setSelectedDayData] = useState(null); // New state for selected day for editing
   const [promoCopyOutput, setPromoCopyOutput] = useState('');
   const [isLoadingPromo, setIsLoadingPromo] = useState(false);
-  const [backgroundSuggestion, setBackgroundSuggestion] = useState(''); // For LLM background suggestion
-  const [isLoadingBackgroundSuggestion, setIsLoadingBackgroundSuggestion] = useState(false);
 
   // State for custom alert modal
   const [isAlertModalVisible, setIsAlertModalVisible] = useState(false);
@@ -169,16 +167,24 @@ const App = () => {
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
-  // State for dynamic background prompt and generated URL
-  const [backgroundPrompt, setBackgroundPrompt] = useState('June theme: vibrant summer beach colors with subtle wave patterns'); // Default prompt
-  const [isBackgroundSelectionEditing, setIsBackgroundSelectionEditing] = useState(false);
-  const [generatedBackgroundUrl, setGeneratedBackgroundUrl] = useState('');
-  const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
+  // Fixed background image URL
+  const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atx1I3tVnDWoZCjsU8=';
 
   // Canvas-provided globals
-  const FIREBASE_CONFIG = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const INITIAL_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+  // Debugging logs for environment variables
+  console.log('--- Environment Variable Debugging ---');
+  console.log('Raw __firebase_config:', typeof __firebase_config === 'string' ? __firebase_config.substring(0, 50) + '...' : __firebase_config); // Log first 50 chars if string
+  console.log('Type of __firebase_config:', typeof __firebase_config);
+  console.log('Parsed firebaseConfig (keys):', Object.keys(firebaseConfig));
+  console.log('Raw __app_id:', __app_id);
+  console.log('Type of __app_id:', typeof __app_id);
+  console.log('Raw __initial_auth_token:', initialAuthToken ? initialAuthToken.substring(0, 20) + '...' : initialAuthToken); // Log first 20 chars if string
+  console.log('Type of __initial_auth_token:', typeof initialAuthToken);
+  console.log('------------------------------------');
 
   // API keys (Canvas will inject these at runtime)
   const GEMINI_API_KEY = "";
@@ -212,8 +218,9 @@ const App = () => {
 
   // Initialize Firebase and set up authentication
   useEffect(() => {
-    if (Object.keys(FIREBASE_CONFIG).length === 0) {
-      console.error("Firebase config is empty. Data saving will not work. Please ensure __firebase_config is set and valid JSON.");
+    // Check if firebaseConfig is truly empty after parsing attempt
+    if (Object.keys(firebaseConfig).length === 0) {
+      console.error("Firebase config is empty or invalid. Data saving will not work. Please ensure FIREBASE_CONFIG environment variable is set and valid JSON.");
       showAlert("Firebase config missing or invalid. Data saving will not work.");
       setIsAuthReady(true);
       setIsFirestoreLoading(false);
@@ -221,7 +228,7 @@ const App = () => {
     }
 
     try {
-      const app = initializeApp(FIREBASE_CONFIG);
+      const app = initializeApp(firebaseConfig);
       const firestore = getFirestore(app);
       const authentication = getAuth(app);
 
@@ -233,8 +240,8 @@ const App = () => {
           setUserId(user.uid);
         } else {
           try {
-            if (INITIAL_AUTH_TOKEN) {
-              await signInWithCustomToken(authentication, INITIAL_AUTH_TOKEN);
+            if (initialAuthToken) { // Use the local initialAuthToken variable
+              await signInWithCustomToken(authentication, initialAuthToken);
             } else {
               await signInAnonymously(authentication);
             }
@@ -253,107 +260,80 @@ const App = () => {
       showAlert("Failed to initialize Firebase. Data saving will not work.");
       setIsAuthReady(true); // Still set to ready even if failed, to unblock UI
     }
-  }, []); // Empty dependency array for one-time initialization
+  }, [JSON.stringify(firebaseConfig), initialAuthToken]); // Depend on stringified config and auth token
 
   // Fetch and sync calendar data from Firestore
   useEffect(() => {
-    if (db && userId && isAuthReady) {
-      // Corrected Firestore paths to include /public/data/
-      const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
-      const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
-      const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
-      const payPeriodsDocRef = doc(db, `artifacts/${APP_ID}/public/data/payPeriods/june`);
+    if (!db || !userId || !isAuthReady) return;
 
-      const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const fetchedData = docSnap.data().data; // 'data' field holds the array
-          if (fetchedData) {
-            setCalendar(fetchedData);
-          } else {
-            setCalendar(initialJuneCalendarDays); // Fallback to initial if data field is empty
-          }
+    // Corrected Firestore paths to include /public/data/
+    const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`); // Use local appId variable
+    const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
+    // Removed backgroundDocRef
+    const payPeriodsDocRef = doc(db, `artifacts/${appId}/public/data/payPeriods/june`);
+
+    const unsubscribeCalendar = onSnapshot(calendarDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const fetchedData = docSnap.data().data; // 'data' field holds the array
+        if (fetchedData) {
+          setCalendar(fetchedData);
         } else {
-          console.log("No calendar data found, creating initial data in Firestore.");
-          setDoc(calendarDocRef, { data: initialJuneCalendarDays })
-            .then(() => setCalendar(initialJuneCalendarDays))
-            .catch(error => console.error("Error setting initial calendar document:", error));
+          setCalendar(initialJuneCalendarDays); // Fallback to initial if data field is empty
         }
-        setIsFirestoreLoading(false);
-      }, (error) => {
-        console.error("Error fetching Firestore calendar data:", error);
-        showAlert("Failed to load saved calendar data. Please check your internet connection or Firebase setup.");
-        setIsFirestoreLoading(false);
-      });
-
-      const unsubscribeOffers = onSnapshot(offersDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().offerText) {
-          setDigitalOffersText(docSnap.data().offerText);
-        } else {
-          console.log("No digital offers data found, setting initial offer.");
-          setDoc(offersDocRef, { offerText: initialDigitalOffersText })
-            .then(() => setDigitalOffersText(initialDigitalOffersText))
-            .catch(error => console.error("Error setting initial offers document:", error));
-        }
-      }, (error) => {
-        console.error("Error fetching digital offers data:", error);
-      });
-
-      const unsubscribeBackground = onSnapshot(backgroundDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.prompt) {
-            setBackgroundPrompt(data.prompt);
-          }
-          if (data.generatedUrl) {
-            setGeneratedBackgroundUrl(data.generatedUrl);
-          } else if (data.prompt) {
-            generateImageBackground(data.prompt);
-          } else {
-            console.log("No background setting found, defaulting and generating image.");
-            const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
-            setBackgroundPrompt(defaultPrompt);
-            generateImageBackground(defaultPrompt);
-          }
-        } else {
-          console.log("No background setting found, defaulting and generating image.");
-          const defaultPrompt = 'June theme: vibrant summer beach colors with subtle wave patterns';
-          setBackgroundPrompt(defaultPrompt);
-          generateImageBackground(defaultPrompt);
-        }
-      }, (error) => {
-        console.error("Error fetching background setting:", error);
-      });
-
-      const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().data) {
-          setPayPeriodsData(docSnap.data().data);
-        } else {
-          console.log("No pay periods data found, setting initial pay periods.");
-          setDoc(payPeriodsDocRef, { data: initialPayPeriodsData })
-            .then(() => setPayPeriodsData(initialPayPeriodsData))
-            .catch(error => console.error("Error setting initial pay periods document:", error));
-        }
-      }, (error) => {
-        console.error("Error fetching pay periods data:", error);
-      });
-
-
-      return () => {
-        unsubscribeCalendar(); // Cleanup calendar listener
-        unsubscribeOffers(); // Cleanup offers listener
-        unsubscribeBackground(); // Cleanup background listener
-        unsubscribePayPeriods(); // Cleanup pay periods listener
-      };
-    } else if (isAuthReady && !userId) {
+      } else {
+        console.log("No calendar data found, creating initial data in Firestore.");
+        setDoc(calendarDocRef, { data: initialJuneCalendarDays })
+          .then(() => setCalendar(initialJuneCalendarDays))
+          .catch(error => console.error("Error setting initial calendar document:", error));
+      }
       setIsFirestoreLoading(false);
-    }
-  }, [db, userId, isAuthReady, APP_ID]); // Re-run when db, userId, or authReady changes
+    }, (error) => {
+      console.error("Error fetching Firestore calendar data:", error);
+      showAlert("Failed to load saved calendar data. Please check your internet connection or Firebase setup.");
+      setIsFirestoreLoading(false);
+    });
+
+    const unsubscribeOffers = onSnapshot(offersDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().offerText) {
+        setDigitalOffersText(docSnap.data().offerText);
+      } else {
+        console.log("No digital offers data found, setting initial offer.");
+        setDoc(offersDocRef, { offerText: initialDigitalOffersText })
+          .then(() => setDigitalOffersText(initialDigitalOffersText))
+          .catch(error => console.error("Error setting initial offers document:", error));
+      }
+    }, (error) => {
+      console.error("Error fetching digital offers data:", error);
+    });
+
+    // Removed unsubscribeBackground
+    const unsubscribePayPeriods = onSnapshot(payPeriodsDocRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().data) {
+        setPayPeriodsData(docSnap.data().data);
+      } else {
+        console.log("No pay periods data found, setting initial pay periods.");
+        setDoc(payPeriodsDocRef, { data: initialPayPeriodsData })
+          .then(() => setPayPeriodsData(initialPayPeriodsData))
+          .catch(error => console.error("Error setting initial pay periods document:", error));
+      }
+    }, (error) => {
+      console.error("Error fetching pay periods data:", error);
+    });
+
+
+    return () => {
+      unsubscribeCalendar(); // Cleanup calendar listener
+      unsubscribeOffers(); // Cleanup offers listener
+      // Removed unsubscribeBackground()
+      unsubscribePayPeriods(); // Cleanup pay periods listener
+    };
+  }, [db, userId, isAuthReady, appId]); // Depend on db, userId, isAuthReady, and appId
 
   // Function to update calendar in Firestore
   const updateCalendarInFirestore = async (updatedCalendar) => {
     if (db && userId) {
       try {
-        const calendarDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarData/juneCalendar`);
+        const calendarDocRef = doc(db, `artifacts/${appId}/public/data/calendarData/juneCalendar`);
         await setDoc(calendarDocRef, { data: updatedCalendar }); // Overwrite with new data
         console.log("Calendar data saved to Firestore!");
       } catch (error) {
@@ -369,7 +349,7 @@ const App = () => {
   const updateDigitalOffersInFirestore = async (newText) => {
     if (db && userId) {
       try {
-        const offersDocRef = doc(db, `artifacts/${APP_ID}/public/data/digitalOffers/currentMonth`);
+        const offersDocRef = doc(db, `artifacts/${appId}/public/data/digitalOffers/currentMonth`);
         await setDoc(offersDocRef, { offerText: newText });
         console.log("Digital offers saved to Firestore!");
       } catch (error) {
@@ -381,26 +361,10 @@ const App = () => {
     }
   };
 
-  // Function to update selected background in Firestore
-  const updateSelectedBackgroundInFirestore = async (prompt, generatedUrl = null) => {
-    if (db && userId) {
-      try {
-        const backgroundDocRef = doc(db, `artifacts/${APP_ID}/public/data/calendarSettings/background`);
-        const dataToSave = { prompt: prompt };
-        if (generatedUrl) {
-          dataToSave.generatedUrl = generatedUrl;
-        } else {
-          dataToSave.generatedUrl = getMonthPlaceholderUrl(prompt);
-        }
-        await setDoc(backgroundDocRef, dataToSave);
-        console.log("Background prompt and URL saved to Firestore!");
-      } catch (error) {
-        console.error("Error saving background setting to Firestore:", error);
-        showAlert("Failed to save background setting. Please try again.");
-      }
-    } else {
-      console.warn("Firestore or User ID not ready for saving background.");
-    }
+  // Function to update selected background in Firestore (now simplified as no generation)
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
   };
 
 
@@ -421,7 +385,7 @@ const App = () => {
     setHolidayNotes('');
     setHolidayHighlight(false);
     setSelectedHoliday(null);
-    setBackgroundSuggestion(''); // Clear previous suggestion
+    // Removed background suggestion related state clearing
     setIsAddHolidayModalVisible(true);
   };
 
@@ -450,7 +414,7 @@ const App = () => {
       setHolidayNotes(day.holiday.notes || '');
       setHolidayHighlight(day.holiday.highlight || false);
       setSelectedHoliday({ dayDate, id: day.holiday.id });
-      setBackgroundSuggestion(''); // Clear previous suggestion
+      // Removed background suggestion related state clearing
       setIsEditHolidayModalVisible(true);
     }
   };
@@ -603,7 +567,7 @@ const App = () => {
     e.preventDefault();
     const dateNum = parseInt(editDayDate, 10);
 
-    if (isNaN(dateNum) || dateNum < 1 || dateNum < 1 || dateNum > 30) { // June has 30 days
+    if (isNaN(dateNum) || dateNum < 1 || dateNum > 30) { // June has 30 days
         showAlert('Please enter a valid date (1-30).');
         return;
     }
@@ -751,84 +715,10 @@ const App = () => {
     }
   };
 
-  const generateBackgroundSuggestion = async () => {
-    setIsLoadingBackgroundSuggestion(true);
-    setBackgroundSuggestion('');
-
-    const prompt = `Suggest a vibrant, non-photographic, abstract background theme or color palette (e.g., "fiery red and orange gradient with subtle star patterns") suitable for a marketing calendar for the holiday: "${holidayTitle}". Focus on colors and abstract elements, not specific images. Keep it concise.`;
-
-    let chatHistory = [];
-    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-    const payload = { contents: chatHistory };
-    const apiKey = GEMINI_API_KEY;
-
-    try {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API error: ${response.status} - ${errorData.error.message || response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.candidates && result.candidates.length > 0 &&
-          result.candidates[0].content && result.candidates[0].content.parts &&
-          result.candidates[0].content.parts.length > 0) {
-        const text = result.candidates[0].content.parts[0].text;
-        setBackgroundSuggestion(text);
-      } else {
-        setBackgroundSuggestion('Could not generate suggestion. Try again.');
-      }
-    } catch (error) {
-      console.error('Error generating background suggestion:', error);
-      setBackgroundSuggestion(`Error: ${error.message}.`);
-    } finally {
-      setIsLoadingBackgroundSuggestion(false);
-    }
-  };
-
-  // Function to generate image using Imagen API
-  const generateImageBackground = async (promptText) => {
-    setIsGeneratingBackground(true);
-    setGeneratedBackgroundUrl('');
-
-    const prompt = `Generate a visually impressive, abstract, non-photographic background image for a marketing calendar. The theme should represent: "${promptText}". Focus on vibrant colors and abstract patterns suitable for a header background.`;
-
-    const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
-    const apiKey = IMAGEN_API_KEY;
-
-    try {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-      const response = await fetch(apiUrl, {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(payload)
-             });
-      const result = await response.json();
-
-      if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
-        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-        setGeneratedBackgroundUrl(imageUrl);
-        updateSelectedBackgroundInFirestore(promptText, imageUrl);
-      } else {
-        showAlert('Could not generate background image. Unexpected API response.');
-        setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText));
-        updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      showAlert(`Error generating background: ${error.message}.`);
-      setGeneratedBackgroundUrl(getMonthPlaceholderUrl(promptText));
-      updateSelectedBackgroundInFirestore(promptText, getMonthPlaceholderUrl(promptText));
-    } finally {
-      setIsGeneratingBackground(false);
-    }
+  // Function to update selected background in Firestore (now simplified as no generation)
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
   };
 
 
@@ -866,12 +756,8 @@ const App = () => {
 
   const weeks = chunkIntoWeeks(calendar);
 
-  // Function to get background image URL based on month (placeholder for now)
-  const getMonthPlaceholderUrl = (promptText) => {
-    return `https://placehold.co/1200x300/e0e0e0/555555?text=${encodeURIComponent(promptText || 'Default Background')}`;
-  };
-
-  const headerBackgroundUrl = generatedBackgroundUrl || getMonthPlaceholderUrl(backgroundPrompt);
+  // The fixed background image URL
+  const headerBackgroundUrl = staticBackgroundUrl;
 
 
   // Show loading indicator if Firestore is still loading data
@@ -959,37 +845,7 @@ const App = () => {
               </p>
             )}
           </div>
-          {/* New: Background Selection Controls */}
-          <div className="background-selection-controls">
-            {isBackgroundSelectionEditing ? (
-              <div className="background-select-container">
-                <textarea
-                  value={backgroundPrompt}
-                  onChange={(e) => setBackgroundPrompt(e.target.value)}
-                  className="background-select"
-                  rows="3"
-                  placeholder="e.g., vibrant summer beach colors with subtle wave patterns"
-                ></textarea>
-                <button className="background-save-btn" onClick={() => {
-                  setIsBackgroundSelectionEditing(false);
-                  updateSelectedBackgroundInFirestore(backgroundPrompt, generatedBackgroundUrl);
-                }}>Save Prompt</button>
-                <button className="generate-background-btn" onClick={() => generateImageBackground(backgroundPrompt)} disabled={isGeneratingBackground || !backgroundPrompt.trim()}>
-                  {isGeneratingBackground ? 'Generating...' : 'Generate Image ✨'}
-                </button>
-              </div>
-            ) : (
-              <button className="edit-background-button" onClick={() => setIsBackgroundSelectionEditing(true)} title="Edit Background">
-                Edit Background ✨
-              </button>
-            )}
-            {isGeneratingBackground && <div className="background-loading-indicator">Generating Background...</div>}
-            {!generatedBackgroundUrl && !isGeneratingBackground && (
-              <div className="background-guide-message">
-                No background image. Click "Edit Background" to describe and generate one.
-              </div>
-            )}
-          </div>
+          {/* Removed dynamic background selection controls */}
         </div>
         {isBannerEditing ? (
           <div className="banner-edit-container">
@@ -1088,7 +944,7 @@ const App = () => {
                         {dayData.specialText && (
                           <div className="badge special-text-badge">
                             {dayData.specialText}
-                            {dayData.holiday?.notes && <div className="holiday-notes">{dayData.holiday.notes}</div>}
+                            {dayData.holiday?.notes && <div className="holiday-notes">{dayAta.holiday.notes}</div>}
                           </div>
                         )}
 
@@ -1323,36 +1179,7 @@ const App = () => {
                 />
                 <label htmlFor="holidayHighlight">Highlight Day (Yellow & Bold Text)</label>
               </div>
-              <div className="form-group">
-                <button
-                  type="button"
-                  className="generate-background-btn"
-                  onClick={generateBackgroundSuggestion}
-                  disabled={isLoadingBackgroundSuggestion || !holidayTitle.trim()}
-                >
-                  {isLoadingBackgroundSuggestion ? 'Generating...' : 'Generate Background Suggestion ✨'}
-                </button>
-                {backgroundSuggestion && (
-                  <>
-                    <textarea
-                      className="background-suggestion-output"
-                      value={backgroundSuggestion}
-                      readOnly
-                      rows="2"
-                      placeholder="Background suggestion will appear here..."
-                    ></textarea>
-                    <button
-                      type="button"
-                      className="copy-to-clipboard-btn"
-                      onClick={() => copyToClipboard(backgroundSuggestion)}
-                      disabled={!backgroundSuggestion}
-                      style={{ marginTop: '10px' }}
-                    >
-                      Copy to Clipboard 📋
-                    </button>
-                  </>
-                )}
-              </div>
+              {/* Removed Generate Background Suggestion for Holiday */}
               <button type="submit" className="submit-event-btn">
                 {selectedHoliday ? 'Save Changes' : 'Add Holiday'}
               </button>
@@ -1668,7 +1495,7 @@ const App = () => {
             background-color: #c8102e;
             color: #fff;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             padding: 8px 12px;
             font-size: 0.8em;
             cursor: pointer;
@@ -1686,6 +1513,11 @@ const App = () => {
         .background-loading-indicator::after {
             content: '...';
             animation: loading-dots 1s infinite;
+        }
+        @keyframes loading-dots {
+          0%, 20% { content: '.'; }
+          40% { content: '..'; }
+          60%, 100% { content: '...'; }
         }
         .background-guide-message {
             font-size: 0.8em;
