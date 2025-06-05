@@ -168,7 +168,7 @@ const App = () => {
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
   // Fixed background image URL
-  const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atx1I3tVnDWoZCjsU8=';
+  const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atxI3tVnDWoZCjsU8=';
 
   // Canvas-provided globals
   const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -362,10 +362,12 @@ const App = () => {
   };
 
   // Function to update selected background in Firestore (now simplified as no generation)
-  const updateSelectedBackgroundInFirestore = async () => {
-    console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
-  };
+  // This function is no longer needed as background is static, or could be used
+  // to simply save the static URL if that needed to be persisted.
+  // For now, we'll keep it as a no-op or remove it if not needed.
+  // const updateSelectedBackgroundInFirestore = async () => {
+  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
+  // };
 
 
   // Function to open Add Event modal
@@ -944,7 +946,7 @@ const App = () => {
                         {dayData.specialText && (
                           <div className="badge special-text-badge">
                             {dayData.specialText}
-                            {dayData.holiday?.notes && <div className="holiday-notes">{dayAta.holiday.notes}</div>}
+                            {dayData.holiday?.notes && <div className="holiday-notes">{dayData.holiday.notes}</div>}
                           </div>
                         )}
 
