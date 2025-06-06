@@ -171,7 +171,6 @@ const App = () => {
   const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atxI3tVnDWoZCjsU8=';
 
   // Access environment variables directly from process.env
-  // Vercel injects these as process.env.VAR_NAME during build time
   const FIREBASE_CONFIG_ENV = process.env.FIREBASE_CONFIG;
   const APP_ID_ENV = process.env.APP_ID || 'default-app-id';
   const INITIAL_AUTH_TOKEN_ENV = process.env.INITIAL_AUTH_TOKEN || null;
@@ -184,12 +183,10 @@ const App = () => {
     }
   } catch (e) {
     console.error("Error parsing FIREBASE_CONFIG environment variable:", e);
-    // This will trigger the showAlert in useEffect
+    // This will trigger the showAlert in useEffect if firebaseConfig remains empty
   }
 
   // API keys (Canvas will inject these at runtime, or they can be set via process.env)
-  // For Gemini and Imagen, we'll keep them as empty strings for Canvas to inject,
-  // but if you were setting them via Vercel env vars, you'd use process.env.GEMINI_API_KEY etc.
   const GEMINI_API_KEY = "";
   const IMAGEN_API_KEY = "";
 
@@ -363,9 +360,14 @@ const App = () => {
 
   // This function is no longer needed as background is static.
   // We'll keep it as a no-op or remove it if not needed.
+  // It was previously declared twice, so ensuring it's only here once.
+  // THE DUPLICATE DECLARATION IS COMMENTED OUT BELOW.
+  /*
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
   };
+  */
 
 
   // Function to open Add Event modal
@@ -713,11 +715,13 @@ const App = () => {
     }
   };
 
-  // Function to update selected background in Firestore (now simplified as no generation)
-  const updateSelectedBackgroundInFirestore = async () => {
-    console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
-  };
+  // This function is no longer needed as background is static.
+  // We'll keep it as a no-op or remove it if not needed.
+  // This was the duplicate declaration causing the error.
+  // const updateSelectedBackgroundInFirestore = async () => {
+  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
+  //   // No actual Firestore operation here as the background is fixed.
+  // };
 
 
   // Helper to chunk the calendar data into weeks for table rendering
@@ -1420,7 +1424,7 @@ const App = () => {
             background-color: #006c3b;
             color: #fff;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             padding: 8px 12px;
             font-size: 0.8em;
             cursor: pointer;
