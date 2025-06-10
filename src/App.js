@@ -359,15 +359,12 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // We'll keep it as a no-op or remove it if not needed.
   // It was previously declared twice, so ensuring it's only here once.
-  // THE DUPLICATE DECLARATION IS COMMENTED OUT BELOW.
-  /*
+  // This function can be completely removed if it's never called or has no side effects.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
   };
-  */
 
 
   // Function to open Add Event modal
@@ -716,12 +713,11 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // We'll keep it as a no-op or remove it if not needed.
-  // This was the duplicate declaration causing the error.
-  // const updateSelectedBackgroundInFirestore = async () => {
-  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
-  //   // No actual Firestore operation here as the background is fixed.
-  // };
+  // This function can be completely removed if it's never called or has no side effects.
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
 
 
   // Helper to chunk the calendar data into weeks for table rendering
@@ -1424,7 +1420,7 @@ const App = () => {
             background-color: #006c3b;
             color: #fff;
             border: none;
-            border-radius: 8px;
+            border-radius: 5px;
             padding: 8px 12px;
             font-size: 0.8em;
             cursor: pointer;
