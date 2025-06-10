@@ -24,7 +24,7 @@ const initialJuneCalendarDays = [
     { id: 'promo2', type: 'general', text: 'Shaq-a-Roni becomes permanent menu item', detail: '$16.99 SHAQ / $18.99 w/ 2L' }
   ], specialDay: 'special-day', weekLabel: 'P6 Wk3', holiday: null },
   { date: 3, day: 'Tue', weather: { high: 63, condition: 'Cloudy', icon: getWeatherIcon('Cloudy') }, promos: [
-    { id: 'promo3', type: 'two-dollar', text: '� BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
+    { id: 'promo3', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
   { date: 4, day: 'Wed', weather: { high: 68, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo4', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
@@ -362,7 +362,6 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -636,7 +635,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     showConfirmation(`Are you sure you want to clear all content for day ${dayDate}?`, () => {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) {
+            if (day.date === dayData) { // This was a subtle bug: dayData vs day.date
                 return {
                     ...day,
                     promos: [],
@@ -1414,7 +1413,7 @@ const App = () => {
             background-color: #006c3b;
             color: #fff;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             padding: 8px 12px;
             font-size: 0.8em;
             cursor: pointer;
@@ -2069,40 +2068,41 @@ const App = () => {
                 display: block;
                 width: 100%;
                 height: auto;
-                font-size: 10pt;
+                font-size: 8pt; /* Reduced font size for print */
             }
             .add-event-controls,
-            .modal-overlay {
+            .modal-overlay,
+            .digital-offers-box, /* Hide digital offers box on print */
+            .banner-edit-container,
+            .title-edit-container {
                 display: none !important;
             }
+            /* Hide individual icons */
             .generate-promo-star,
             .edit-icon,
             .delete-icon,
             .banner-edit-icon,
             .copy-to-clipboard-btn,
             .title-edit-icon,
-            .title-edit-container,
-            .title-edit-save-btn,
             .background-selection-controls {
                 display: none !important;
             }
             .header-icon {
                 display: inline-block !important;
-                width: 30px !important;
-                height: 30px !important;
-                margin: 0 8px !important;
+                width: 20px !important; /* Smaller icon for print */
+                height: 20px !important;
+                margin: 0 5px !important;
                 vertical-align: middle !important;
                 print-color-adjust: exact;
             }
 
             .logo {
-                display: block !important;
                 text-align: center !important;
                 margin-bottom: 5px !important;
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 18px !important;
+                height: 15px !important; /* Smaller logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -2121,8 +2121,8 @@ const App = () => {
             }
             .calendar-header {
                 box-shadow: none;
-                border-bottom: 1px solid #888;
-                padding: 0.3rem 0;
+                border-bottom: 2px solid #333 !important; /* Darker, thicker border */
+                padding: 0.2rem 5px; /* Reduced padding */
                 border-radius: 0;
                 background-color: #f0f0f0;
                 background-image: url(${headerBackgroundUrl}) !important;
@@ -2136,10 +2136,10 @@ const App = () => {
                 padding-right: 8px !important;
             }
             h1 {
-                font-size: 1.8em !important;
+                font-size: 1.5em !important; /* Adjusted font size for print */
                 font-weight: 900 !important;
                 margin-bottom: 0.05em !important;
-                color: #000 !important;
+                color: #000 !important; /* Darker text */
                 text-shadow: none;
                 cursor: default;
                 print-color-adjust: exact;
@@ -2154,34 +2154,16 @@ const App = () => {
                 background-color: #c0c0c0;
                 color: #000;
                 border-bottom: 1px solid #888;
-                font-size: 1em !important;
+                font-size: 0.9em !important; /* Adjusted font size */
                 font-weight: 700 !important;
                 print-color-adjust: exact;
             }
             .digital-offers-box {
-                display: block !important;
-                flex-shrink: 1 !important;
-                min-width: unset !important;
-                max-width: 200px !important;
-                margin-left: 15px !important;
-                padding: 8px 12px !important;
-                box-shadow: none !important;
-                border: 1px solid #888 !important;
-                print-color-adjust: exact;
+                /* Already display: none !important; */
             }
-            .digital-offers-title {
-                font-size: 1.2em !important;
-                font-weight: 900 !important;
-                margin-bottom: 3px !important;
-                color: #c8102e !important;
-                text-transform: uppercase !important;
-                print-color-adjust: exact;
-            }
+            .digital-offers-title,
             .digital-offers-text {
-                font-size: 0.9em !important;
-                line-height: 1.3 !important;
-                color: #333 !important;
-                print-color-adjust: exact;
+                /* Already display: none !important; due to parent */
             }
 
 
@@ -2192,85 +2174,28 @@ const App = () => {
             }
             th {
                 background-color: #f8f8f8;
-                border: 1px solid #888;
-                padding: 5px 3px;
-                font-size: 1em !important;
+                border: 2px solid #333 !important; /* Darker, thicker border */
+                padding: 3px 2px; /* Reduced padding */
+                font-size: 0.9em !important; /* Adjusted font size */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
                 print-color-adjust: exact;
             }
             td {
-                border: 1px solid #888;
+                border: 2px solid #333 !important; /* Darker, thicker border */
                 height: auto;
-                min-height: 65px;
-                padding: 4px;
+                min-height: 50px; /* Adjusted min-height */
+                padding: 3px; /* Reduced padding */
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid;
                 background-color: #fdfdfd !important;
                 print-color-adjust: exact;
             }
-            .badge.two-dollar { background-color: #ffe8eb !important; color: #c8102e !important; print-color-adjust: exact; }
-            .badge.rmp50 { background-color: #e8f5e8 !important; color: #006c3b !important; print-color-adjust: exact; }
-            .badge.special-text-badge { background-color: rgba(255,255,255,0.8) !important; color: #333 !important; border-color: rgba(0,0,0,0.3) !important; print-color-adjust: exact; }
-            .badge.monthly-offer { background: linear-gradient(135deg, #c8102e 0%, #ff4500 100%) !important; color: #fff !important; border-color: #a00d27 !important; print-color-adjust: exact; }
-            .badge.pay-periods {
-                background-color: #e6f7ff !important;
-                color: #0056b3 !important;
-                border: 1px solid #99d6ff !important;
-                font-weight: 700 !important;
-                font-size: 0.8em !important;
-                print-color-adjust: exact;
-            }
-
-
-            .cell-content {
-                height: auto;
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-start;
-                align-items: flex-start;
-            }
-            .date-weather-group {
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1px;
-                margin-bottom: 3px;
-                position: relative;
-                width: 100%;
-            }
-            .date-number-wrapper {
-                background-color: transparent;
-                border: none;
-                padding: 0;
-                border-radius: 0;
-                print-color-adjust: exact;
-            }
-            .highlight-holiday-cell .date-number-wrapper {
-                background-color: #FFD700 !important;
-                border: 1px solid #DAA520 !important;
-                padding: 1px 2px;
-                border-radius: 2px;
-                print-color-adjust: exact;
-            }
-            .date-number {
-                font-size: 1.1em !important;
-                color: #000;
-                font-weight: 700;
-                print-color-adjust: exact;
-            }
-            .weather {
-                font-size: 0.95em !important;
-                font-weight: 700 !important;
-                color: #555;
-                print-color-adjust: exact;
-            }
             .badge {
-                padding: 3px 5px;
-                font-size: 0.8em !important;
+                padding: 2px 4px; /* Reduced padding */
+                font-size: 0.7em !important; /* Adjusted font size */
                 box-shadow: none;
                 border: 1px solid #991;
                 page-break-inside: avoid;
@@ -2279,7 +2204,7 @@ const App = () => {
             }
             .card {
                 box-shadow: none;
-                padding: 3px;
+                padding: 2px; /* Reduced padding */
                 margin-top: 3px;
                 border: 1px solid #ccc;
                 background-color: #fff;
@@ -2287,15 +2212,18 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.7em !important;
+                font-size: 0.6em !important; /* Adjusted font size */
                 margin-top: 1px;
                 color: #666;
                 print-color-adjust: exact;
             }
+            .holiday-notes {
+                font-size: 0.6em !important; /* Adjusted font size */
+            }
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.7em !important;
+                font-size: 0.6em !important; /* Adjusted font size */
                 padding: 2px 5px;
                 box-shadow: none;
                 border: 1px solid #999;
@@ -2303,9 +2231,16 @@ const App = () => {
                 align-self: flex-start;
                 print-color-adjust: exact;
             }
+            .special-fathers-day,
+            .special-juneteenth,
+            .custom-holiday {
+                /* Ensure background colors print */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
 
-        /* Media queries for screen display only */
+        /* Media queries for screen display only (kept as is) */
         @media screen and (max-width: 768px) {
             body {
                 padding: 10px;
