@@ -359,7 +359,7 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // The duplicate declaration was causing the error. This is the only instance.
+  // This is the only instance of its declaration now.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -712,7 +712,7 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // This function can be completely removed if it's never called or has no side effects.
+  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -1818,7 +1818,7 @@ const App = () => {
         /* Individual icon hover for slight scale/background change */
         .edit-icon:hover, .delete-icon:hover, .generate-promo-star:hover,
         .title-edit-icon:hover, .banner-edit-icon:hover, .digital-offers-edit-icon:hover,
-        .edit-background-button:hover {
+        .edit-background-button:active {
             transform: scale(1.1);
             background-color: rgba(255, 255, 255, 0.7);
         }
