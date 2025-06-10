@@ -163,7 +163,7 @@ const App = () => {
   const [editDayWeatherCondition, setEditDayWeatherCondition] = useState('');
 
   // State for editing day properties
-  const [editDayDate, setEditDayDate] = '';
+  const [editDayDate, setEditDayDate] = useState('');
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
@@ -637,7 +637,7 @@ const App = () => {
   const handleDeleteDay = (dayDate) => {
     showConfirmation(`Are you sure you want to clear all content for day ${dayDate}?`, () => {
         const updatedCalendar = calendar.map(day => {
-            if (day.date === dayDate) { // Changed dayData to day.date
+            if (day.date === dayDate) {
                 return {
                     ...day,
                     promos: [],
@@ -716,7 +716,11 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // I have now completely removed it.
+  // It was previously declared twice, so ensuring it's only here once.
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
 
 
   // Helper to chunk the calendar data into weeks for table rendering
@@ -754,7 +758,7 @@ const App = () => {
   const weeks = chunkIntoWeeks(calendar);
 
   // The fixed background image URL
-  const headerBackgroundUrl = staticBackgroundUrl;
+  const headerBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atxI3tVnDWoZCjsU8=';
 
 
   // Show loading indicator if Firestore is still loading data
@@ -2075,6 +2079,10 @@ const App = () => {
             }
             body {
                 font-size: 6pt; /* Further reduced font size for print to fit more content */
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: stretch;
             }
             .add-event-controls,
             .modal-overlay,
@@ -2118,8 +2126,8 @@ const App = () => {
             .calendar-container {
                 box-shadow: none;
                 border: 0; /* Remove outer border to maximize space */
-                width: 100vw; /* Ensure 100% viewport width */
-                height: 100vh; /* Ensure 100% viewport height */
+                width: 100%; /* Ensure 100% width for full span */
+                height: 100%; /* Ensure 100% height for full span */
                 border-radius: 0;
                 overflow: hidden; /* Hide scrollbars for print */
                 background: #fff;
