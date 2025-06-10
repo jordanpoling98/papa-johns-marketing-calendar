@@ -406,7 +406,7 @@ const App = () => {
   const openEditHolidayModal = (dayDate) => {
     const day = calendar.find(d => d.date === dayDate);
     if (day && day.holiday) {
-      setHolidayDate(dayDate);
+      setHolidayDate(dayData); // Pass dayData.date directly, not dayData
       setHolidayTitle(day.holiday.title);
       setHolidayNotes(day.holiday.notes || '');
       setHolidayHighlight(day.holiday.highlight || false);
@@ -711,6 +711,12 @@ const App = () => {
     }
   };
 
+  // This function is no longer needed as background is static.
+  // This is the only instance of its declaration now.
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
 
 
   // Helper to chunk the calendar data into weeks for table rendering
