@@ -163,7 +163,7 @@ const App = () => {
   const [editDayWeatherCondition, setEditDayWeatherCondition] = useState('');
 
   // State for editing day properties
-  const [editDayDate, setEditDayDate] = useState('');
+  const [editDayDate, setEditDayDate] = '';
   const [editDayWeatherHigh, setEditDayWeatherHigh] = useState('');
   const [editDayWeekLabel, setEditDayWeekLabel] = useState('');
 
@@ -362,12 +362,12 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // This is the only instance of its declaration now.
   // It was previously declared twice, so ensuring it's only here once.
-  const updateSelectedBackgroundInFirestore = async () => {
-    console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
-  };
+  // Removed duplicate declaration.
+  // const updateSelectedBackgroundInFirestore = async () => {
+  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
+  //   // No actual Firestore operation here as the background is fixed.
+  // };
 
 
   // Function to open Add Event modal
