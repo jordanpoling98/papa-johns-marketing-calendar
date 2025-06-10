@@ -362,7 +362,6 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -1262,7 +1261,7 @@ const App = () => {
           font-family: 'Open Sans', sans-serif;
           font-weight: 300;
           line-height: 1.6;
-          background: linear-gradient(135deg, #FFD700 0%, #FF8C00 25%, #FF6347 50%, #FF4500 75%, #FF1493 100%); /* Vibrant, warm gradient */
+          background: linear-gradient(135deg, #FFD700 0%, #FF8C00 25%, #FF6347 50%, #FF1493 100%); /* Vibrant, warm gradient */
           color: #333;
           margin: 0;
           padding: 20px;
