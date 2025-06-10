@@ -359,8 +359,7 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // It was previously declared twice, so ensuring it's only here once.
-  // This function can be completely removed if it's never called or has no side effects.
+  // The duplicate declaration was causing the error. This is the only instance.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
