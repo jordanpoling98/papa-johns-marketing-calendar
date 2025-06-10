@@ -170,10 +170,11 @@ const App = () => {
   // Fixed background image URL
   const staticBackgroundUrl = 'https://media.istockphoto.com/id/1463842482/photo/beautiful-multicolor-tropical-background-of-palm-trees.jpg?s=612x612&w=0&k=20&c=FqAG1B4ENYMh9SNzzaqAdlHki0atxI3tVnDWoZCjsU8=';
 
-  // Access environment variables from process.env (Base64 encoded)
-  const FIREBASE_CONFIG_BASE64_ENV = process.env.FIREBASE_CONFIG_BASE64;
-  const APP_ID_ENV = process.env.APP_ID || 'default-app-id';
-  const INITIAL_AUTH_TOKEN_ENV = process.env.INITIAL_AUTH_TOKEN || null;
+  // Access environment variables from process.env (Base64 encoded for Firebase config)
+  // IMPORTANT: For Create React App, environment variables must start with REACT_APP_
+  const FIREBASE_CONFIG_BASE64_ENV = process.env.REACT_APP_FIREBASE_CONFIG_BASE64;
+  const APP_ID_ENV = process.env.REACT_APP_APP_ID || 'default-app-id';
+  const INITIAL_AUTH_TOKEN_ENV = process.env.REACT_APP_INITIAL_AUTH_TOKEN || null;
 
   // Decode and parse Firebase config from environment variable
   let firebaseConfig = {};
@@ -183,17 +184,19 @@ const App = () => {
       const decodedConfig = atob(FIREBASE_CONFIG_BASE64_ENV);
       firebaseConfig = JSON.parse(decodedConfig);
     } else {
-      console.warn("FIREBASE_CONFIG_BASE64_ENV is empty or not a string. Value:", FIREBASE_CONFIG_BASE64_ENV);
+      console.warn("REACT_APP_FIREBASE_CONFIG_BASE64 is empty or not a string. Value:", FIREBASE_CONFIG_BASE64_ENV);
       firebaseConfig = {};
     }
   } catch (e) {
-    console.error("Error decoding or parsing FIREBASE_CONFIG_BASE64_ENV:", e);
+    console.error("Error decoding or parsing REACT_APP_FIREBASE_CONFIG_BASE64:", e);
     firebaseConfig = {}; // Ensure it's empty if parsing fails
   }
 
   // API keys (Canvas will inject these at runtime, or they can be set via process.env)
-  const GEMINI_API_KEY = "";
-  const IMAGEN_API_KEY = "";
+  // For Gemini and Imagen, we'll assume they are handled by Vercel's direct injection if needed,
+  // or they would also need REACT_APP_ prefix if accessed this way.
+  const GEMINI_API_KEY = ""; // Vercel will inject or keep empty if not set
+  const IMAGEN_API_KEY = ""; // Vercel will inject or keep empty if not set
 
   // Function to show custom alert
   const showAlert = (message) => {
@@ -225,7 +228,7 @@ const App = () => {
   useEffect(() => {
     // Check if firebaseConfig is truly empty after parsing attempt
     if (Object.keys(firebaseConfig).length === 0) {
-      console.error("Firebase config is empty or invalid. Data saving will not work. Please ensure FIREBASE_CONFIG_BASE64 environment variable is set and valid Base64 JSON.");
+      console.error("Firebase config is empty or invalid. Data saving will not work. Please ensure REACT_APP_FIREBASE_CONFIG_BASE64 environment variable is set and valid Base64 JSON.");
       showAlert("Firebase config missing or invalid. Data saving will not work.");
       setIsAuthReady(true);
       setIsFirestoreLoading(false);
@@ -359,7 +362,6 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
-  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -710,6 +712,13 @@ const App = () => {
       setIsLoadingPromo(false);
     }
   };
+
+  // This function is no longer needed as background is static.
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
+
 
   // Helper to chunk the calendar data into weeks for table rendering
   const chunkIntoWeeks = (data) => {
