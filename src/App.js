@@ -24,7 +24,7 @@ const initialJuneCalendarDays = [
     { id: 'promo2', type: 'general', text: 'Shaq-a-Roni becomes permanent menu item', detail: '$16.99 SHAQ / $18.99 w/ 2L' }
   ], specialDay: 'special-day', weekLabel: 'P6 Wk3', holiday: null },
   { date: 3, day: 'Tue', weather: { high: 63, condition: 'Cloudy', icon: getWeatherIcon('Cloudy') }, promos: [
-    { id: 'promo3', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
+    { id: 'promo3', type: 'two-dollar', text: '� BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
   { date: 4, day: 'Wed', weather: { high: 68, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [
     { id: 'promo4', type: 'rmp50', text: '50% Off RMP to Lapsed Guests', detail: 'Promo Code: RMP50' }
@@ -362,6 +362,7 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
+  // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
     // No actual Firestore operation here as the background is fixed.
@@ -471,7 +472,7 @@ const App = () => {
     if (selectedEvent) { // Editing existing event
       targetDay.promos = targetDay.promos.map(promo =>
         promo.id === selectedEvent.promoId
-          ? { ...promo, type: eventColor, text: eventTitle.trim(), detail: eventPromoCode.trim() || null } // Changed to null
+          ? { ...promo, type: eventColor, text: eventTitle.trim(), detail: (eventPromoCode || '').trim() || null } // Changed to null
           : promo
       );
       // If the event was moved to a new day, ensure it's added if it wasn't already there
@@ -480,7 +481,7 @@ const App = () => {
               id: selectedEvent.id, // Use selectedEvent.id to ensure consistent ID after move
               type: eventColor,
               text: eventTitle.trim(),
-              detail: eventPromoCode.trim() || null // Changed to null
+              detail: (eventPromoCode || '').trim() || null // Changed to null
           });
       }
     } else { // Adding new event
@@ -488,7 +489,7 @@ const App = () => {
         id: `promo${Date.now()}`,
         type: eventColor,
         text: eventTitle.trim(),
-        detail: eventPromoCode.trim() || null // Changed to null
+        detail: (eventPromoCode || '').trim() || null // Changed to null
       };
       targetDay.promos.push(newPromo);
     }
@@ -525,7 +526,7 @@ const App = () => {
     const updatedHoliday = {
       id: selectedHoliday ? selectedHoliday.id : `holiday${Date.now()}`,
       title: holidayTitle.trim(),
-      notes: holidayNotes.trim() || null, // Ensure null instead of undefined
+      notes: (holidayNotes || '').trim() || null, // Ensure null instead of undefined
       highlight: holidayHighlight
     };
 
@@ -579,7 +580,7 @@ const App = () => {
                     condition: editDayWeatherCondition || null, // Ensure null for empty or undefined
                     icon: getWeatherIcon(editDayWeatherCondition || '') // Ensure string for icon
                 },
-                weekLabel: editDayWeekLabel.trim() || null // Ensure null for empty or undefined
+                weekLabel: (editDayWeekLabel || '').trim() || null // Ensure null for empty or undefined
             };
         }
         return day;
@@ -1261,7 +1262,7 @@ const App = () => {
           font-family: 'Open Sans', sans-serif;
           font-weight: 300;
           line-height: 1.6;
-          background: linear-gradient(135deg, #FFD700 0%, #FF8C00 25%, #FF6347 50%, #FF1493 100%); /* Vibrant, warm gradient */
+          background: linear-gradient(135deg, #FFD700 0%, #FF8C00 25%, #FF6347 50%, #FF4500 75%, #FF1493 100%); /* Vibrant, warm gradient */
           color: #333;
           margin: 0;
           padding: 20px;
@@ -2044,7 +2045,7 @@ const App = () => {
             transition: background-color 0.2s ease-in-out;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        .submit-event-btn:hover, .copy-to-clipboard-btn:hover {
+        .submit-event-btn:hover {
             background-color: #a00d27;
         }
         .cancel-btn {
