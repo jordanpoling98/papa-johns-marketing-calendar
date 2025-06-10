@@ -362,6 +362,7 @@ const App = () => {
   };
 
   // This function is no longer needed as background is static.
+  // This is the only instance of its declaration now.
   // It was previously declared twice, so ensuring it's only here once.
   const updateSelectedBackgroundInFirestore = async () => {
     console.log("Background is now static. No Firestore update for dynamic background needed.");
@@ -714,6 +715,10 @@ const App = () => {
     }
   };
 
+  // This function is no longer needed as background is static.
+  // I have now completely removed it.
+
+
   // Helper to chunk the calendar data into weeks for table rendering
   const chunkIntoWeeks = (data) => {
     const weeks = [];
@@ -868,12 +873,10 @@ const App = () => {
                   <td key={dayIndex} className={`${dayData?.specialDay || ''} ${dayData === null ? 'empty-cell' : ''} ${dayData?.holiday?.highlight ? 'highlight-holiday-cell' : ''}`}>
                     {dayData ? (
                       <div className="cell-content">
-                        <div className="date-weather-group">
+                        <div className="date-number-wrapper">
                           {dayData.date !== null && (
-                            <div className="date-number-wrapper">
-                              <div className="date-number">
+                            <div className="date-number">
                                 {dayData.date}
-                              </div>
                             </div>
                           )}
                           {dayData.weather !== null && (
@@ -2060,16 +2063,18 @@ const App = () => {
         @media print {
             @page {
                 size: landscape;
-                margin: 0.2in;
+                margin: 0; /* Remove all margins from the page */
+            }
+            html, body {
+                width: 100vw;
+                height: 100vh;
+                margin: 0;
+                padding: 0;
+                overflow: hidden; /* Hide scrollbars */
+                box-sizing: border-box; /* Include padding and border in the element's total width and height */
             }
             body {
-                background-color: #fff;
-                padding: 0;
-                margin: 0;
-                display: block;
-                width: 100%;
-                height: auto;
-                font-size: 8pt; /* Reduced font size for print */
+                font-size: 6pt; /* Further reduced font size for print to fit more content */
             }
             .add-event-controls,
             .modal-overlay,
@@ -2090,20 +2095,20 @@ const App = () => {
             }
             .header-icon {
                 display: inline-block !important;
-                width: 20px !important; /* Smaller icon for print */
-                height: 20px !important;
-                margin: 0 5px !important;
+                width: 15px !important; /* Smaller icon for print */
+                height: 15px !important;
+                margin: 0 3px !important; /* Adjusted margin */
                 vertical-align: middle !important;
                 print-color-adjust: exact;
             }
 
             .logo {
                 text-align: center !important;
-                margin-bottom: 5px !important;
+                margin-bottom: 2px !important; /* Reduced margin */
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 15px !important; /* Smaller logo for print */
+                height: 10px !important; /* Smaller logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -2112,18 +2117,22 @@ const App = () => {
 
             .calendar-container {
                 box-shadow: none;
-                border: 1px solid #888;
-                max-width: 100%;
-                width: 100%;
+                border: 0; /* Remove outer border to maximize space */
+                width: 100vw; /* Ensure 100% viewport width */
+                height: 100vh; /* Ensure 100% viewport height */
                 border-radius: 0;
-                overflow: visible;
+                overflow: hidden; /* Hide scrollbars for print */
                 background: #fff;
                 print-color-adjust: exact;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between; /* Distribute space vertically */
+                align-items: stretch;
             }
             .calendar-header {
                 box-shadow: none;
-                border-bottom: 2px solid #333 !important; /* Darker, thicker border */
-                padding: 0.2rem 5px; /* Reduced padding */
+                border-bottom: 3px solid #000 !important; /* Darker, thicker border */
+                padding: 0.1rem 5px; /* Further reduced padding */
                 border-radius: 0;
                 background-color: #f0f0f0;
                 background-image: url(${headerBackgroundUrl}) !important;
@@ -2137,7 +2146,7 @@ const App = () => {
                 padding-right: 8px !important;
             }
             h1 {
-                font-size: 1.5em !important; /* Adjusted font size for print */
+                font-size: 1.1em !important; /* Further adjusted font size for print */
                 font-weight: 900 !important;
                 margin-bottom: 0.05em !important;
                 color: #000 !important; /* Darker text */
@@ -2150,85 +2159,91 @@ const App = () => {
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 5px 8px;
-                margin-bottom: 5px;
-                background-color: #c0c0c0;
+                padding: 2px 5px; /* Further reduced padding */
+                margin-bottom: 2px; /* Reduced margin */
+                background-color: #e0e0e0; /* Slightly darker to stand out */
                 color: #000;
-                border-bottom: 1px solid #888;
-                font-size: 0.9em !important; /* Adjusted font size */
+                border-bottom: 1px solid #666;
+                font-size: 0.7em !important; /* Adjusted font size */
                 font-weight: 700 !important;
                 print-color-adjust: exact;
-            }
-            .digital-offers-box {
-                /* Already display: none !important; */
-            }
-            .digital-offers-title,
-            .digital-offers-text {
-                /* Already display: none !important; due to parent */
             }
 
 
             table {
                 width: 100%;
+                height: 100%; /* Distribute height evenly */
                 table-layout: fixed;
                 border-collapse: collapse;
+                flex-grow: 1; /* Allow table to fill available space */
             }
             th {
                 background-color: #f8f8f8;
-                border: 2px solid #333 !important; /* Darker, thicker border */
-                padding: 3px 2px; /* Reduced padding */
-                font-size: 0.9em !important; /* Adjusted font size */
+                border: 3px solid #000 !important; /* Darker, thicker border */
+                padding: 1px; /* Further reduced padding */
+                font-size: 0.7em !important; /* Adjusted font size */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
                 print-color-adjust: exact;
             }
             td {
-                border: 2px solid #333 !important; /* Darker, thicker border */
-                height: auto;
-                min-height: 50px; /* Adjusted min-height */
-                padding: 3px; /* Reduced padding */
+                border: 3px solid #000 !important; /* Darker, thicker border */
+                height: 100%; /* Distribute height evenly */
+                min-height: 0; /* Remove min-height constraint for better scaling */
+                padding: 2px; /* Further reduced padding */
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid;
                 background-color: #fdfdfd !important;
                 print-color-adjust: exact;
             }
+            .cell-content {
+                height: 100%;
+                min-height: 0; /* Ensure it scales down */
+            }
+            .date-number {
+                font-size: 0.9em !important; /* Adjusted for print */
+            }
+            .weather {
+                font-size: 0.75em !important; /* Adjusted for print */
+            }
             .badge {
-                padding: 2px 4px; /* Reduced padding */
-                font-size: 0.7em !important; /* Adjusted font size */
+                padding: 1px 2px; /* Reduced padding */
+                font-size: 0.55em !important; /* Adjusted font size */
                 box-shadow: none;
                 border: 1px solid #991;
                 page-break-inside: avoid;
-                margin-bottom: 2px;
+                margin-bottom: 1px;
                 print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
-                padding: 2px; /* Reduced padding */
-                margin-top: 3px;
+                padding: 1px; /* Reduced padding */
+                margin-top: 1px;
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.6em !important; /* Adjusted font size */
-                margin-top: 1px;
+                font-size: 0.5em !important; /* Adjusted font size */
+                margin-top: 0px;
+                line-height: 1.1;
                 color: #666;
                 print-color-adjust: exact;
             }
             .holiday-notes {
-                font-size: 0.6em !important; /* Adjusted font size */
+                font-size: 0.5em !important; /* Adjusted font size */
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.6em !important; /* Adjusted font size */
-                padding: 2px 5px;
+                font-size: 0.5em !important; /* Adjusted font size */
+                padding: 1px 3px;
                 box-shadow: none;
                 border: 1px solid #999;
-                margin-top: 3px;
+                margin-top: 2px;
                 align-self: flex-start;
                 print-color-adjust: exact;
             }
@@ -2237,6 +2252,14 @@ const App = () => {
             .custom-holiday {
                 /* Ensure background colors print */
                 -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .pay-periods-container {
+                margin-top: 5px !important; /* Adjusted margin */
+                padding: 5px !important; /* Adjusted padding */
+                font-size: 0.7em !important; /* Adjusted font size */
+                border: 1px solid #99d6ff !important;
+                background-color: #e6f7ff !important;
                 print-color-adjust: exact;
             }
         }
