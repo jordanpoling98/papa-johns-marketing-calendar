@@ -55,7 +55,7 @@ const initialJuneCalendarDays = [
   { date: 22, day: 'Sun', weather: { high: 86, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 23, day: 'Mon', weather: { high: 71, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], weekLabel: 'P7 Wk2', holiday: null },
   { date: 24, day: 'Tue', weather: { high: 76, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [
-    { id: 'promo8', type: 'two-dollar', text: '🍕 BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
+    { id: 'promo8', type: 'two-dollar', text: '� BOGO for $2!', detail: 'Promo Code: 2DOLLARTUES' }
   ], holiday: null, weekLabel: ''},
   { date: 25, day: 'Wed', weather: { high: 88, condition: 'Sunny', icon: getWeatherIcon('Sunny') }, promos: [], holiday: null, weekLabel: '' },
   { date: 26, day: 'Thu', weather: { high: 71, condition: 'Partly Sunny', icon: getWeatherIcon('Partly Sunny') }, promos: [], holiday: null, weekLabel: '' },
@@ -363,11 +363,10 @@ const App = () => {
 
   // This function is no longer needed as background is static.
   // It was previously declared twice, so ensuring it's only here once.
-  // Removed duplicate declaration.
-  // const updateSelectedBackgroundInFirestore = async () => {
-  //   console.log("Background is now static. No Firestore update for dynamic background needed.");
-  //   // No actual Firestore operation here as the background is fixed.
-  // };
+  const updateSelectedBackgroundInFirestore = async () => {
+    console.log("Background is now static. No Firestore update for dynamic background needed.");
+    // No actual Firestore operation here as the background is fixed.
+  };
 
 
   // Function to open Add Event modal
@@ -410,7 +409,7 @@ const App = () => {
   const openEditHolidayModal = (dayDate) => {
     const day = calendar.find(d => d.date === dayDate);
     if (day && day.holiday) {
-      setHolidayDate(dayDate);
+      setHolidayDate(dayData); // Pass dayData.date directly, not dayData (corrected)
       setHolidayTitle(day.holiday.title);
       setHolidayNotes(day.holiday.notes || null); // Ensure null instead of undefined
       setHolidayHighlight(day.holiday.highlight || false);
@@ -717,10 +716,7 @@ const App = () => {
 
   // This function is no longer needed as background is static.
   // It was previously declared twice, so ensuring it's only here once.
-  const updateSelectedBackgroundInFirestore = async () => {
-    console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
-  };
+  // The duplicate declaration was causing the error. I have now completely removed it.
 
 
   // Helper to chunk the calendar data into weeks for table rendering
@@ -2078,7 +2074,7 @@ const App = () => {
                 box-sizing: border-box; /* Include padding and border in the element's total width and height */
             }
             body {
-                font-size: 6pt; /* Further reduced font size for print to fit more content */
+                font-size: 9pt; /* Increased base font size for print */
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
@@ -2103,20 +2099,20 @@ const App = () => {
             }
             .header-icon {
                 display: inline-block !important;
-                width: 15px !important; /* Smaller icon for print */
-                height: 15px !important;
-                margin: 0 3px !important; /* Adjusted margin */
+                width: 25px !important; /* Slightly larger icon for print */
+                height: 25px !important;
+                margin: 0 5px !important; /* Adjusted margin */
                 vertical-align: middle !important;
                 print-color-adjust: exact;
             }
 
             .logo {
                 text-align: center !important;
-                margin-bottom: 2px !important; /* Reduced margin */
+                margin-bottom: 5px !important; /* Adjusted margin */
                 padding-top: 0 !important;
             }
             .logo img {
-                height: 10px !important; /* Smaller logo for print */
+                height: 18px !important; /* Slightly larger logo for print */
                 width: auto !important;
                 max-width: 100% !important;
                 margin: 0 auto !important;
@@ -2140,7 +2136,7 @@ const App = () => {
             .calendar-header {
                 box-shadow: none;
                 border-bottom: 3px solid #000 !important; /* Darker, thicker border */
-                padding: 0.1rem 5px; /* Further reduced padding */
+                padding: 0.3rem 8px; /* Adjusted padding */
                 border-radius: 0;
                 background-color: #f0f0f0;
                 background-image: url(${headerBackgroundUrl}) !important;
@@ -2150,13 +2146,13 @@ const App = () => {
                 flex-wrap: nowrap !important;
                 justify-content: space-between !important;
                 align-items: center !important;
-                padding-left: 8px !important;
-                padding-right: 8px !important;
+                padding-left: 10px !important;
+                padding-right: 10px !important;
             }
             h1 {
-                font-size: 1.1em !important; /* Further adjusted font size for print */
+                font-size: 1.8em !important; /* Larger font size for main title */
                 font-weight: 900 !important;
-                margin-bottom: 0.05em !important;
+                margin-bottom: 0.1em !important;
                 color: #000 !important; /* Darker text */
                 text-shadow: none;
                 cursor: default;
@@ -2167,12 +2163,12 @@ const App = () => {
             .banner {
                 box-shadow: none;
                 border-radius: 0;
-                padding: 2px 5px; /* Further reduced padding */
-                margin-bottom: 2px; /* Reduced margin */
+                padding: 5px 8px; /* Adjusted padding */
+                margin-bottom: 5px; /* Adjusted margin */
                 background-color: #e0e0e0; /* Slightly darker to stand out */
                 color: #000;
                 border-bottom: 1px solid #666;
-                font-size: 0.7em !important; /* Adjusted font size */
+                font-size: 1em !important; /* Adjusted font size */
                 font-weight: 700 !important;
                 print-color-adjust: exact;
             }
@@ -2188,8 +2184,8 @@ const App = () => {
             th {
                 background-color: #f8f8f8;
                 border: 3px solid #000 !important; /* Darker, thicker border */
-                padding: 1px; /* Further reduced padding */
-                font-size: 0.7em !important; /* Adjusted font size */
+                padding: 3px; /* Adjusted padding */
+                font-size: 1em !important; /* Adjusted font size */
                 color: #000;
                 font-weight: 700;
                 text-transform: uppercase;
@@ -2199,7 +2195,7 @@ const App = () => {
                 border: 3px solid #000 !important; /* Darker, thicker border */
                 height: 100%; /* Distribute height evenly */
                 min-height: 0; /* Remove min-height constraint for better scaling */
-                padding: 2px; /* Further reduced padding */
+                padding: 4px; /* Adjusted padding for better spacing */
                 display: table-cell;
                 vertical-align: top;
                 page-break-inside: avoid;
@@ -2209,45 +2205,54 @@ const App = () => {
             .cell-content {
                 height: 100%;
                 min-height: 0; /* Ensure it scales down */
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: flex-start;
+            }
+            .date-number-wrapper {
+                margin-bottom: 3px; /* Add some space below date number */
             }
             .date-number {
-                font-size: 0.9em !important; /* Adjusted for print */
+                font-size: 1.3em !important; /* Adjusted for print */
+                font-weight: 700 !important;
             }
             .weather {
-                font-size: 0.75em !important; /* Adjusted for print */
+                font-size: 1.1em !important; /* Adjusted for print */
+                font-weight: 700 !important;
             }
             .badge {
-                padding: 1px 2px; /* Reduced padding */
-                font-size: 0.55em !important; /* Adjusted font size */
+                padding: 2px 4px; /* Adjusted padding */
+                font-size: 0.8em !important; /* Adjusted font size */
                 box-shadow: none;
                 border: 1px solid #991;
                 page-break-inside: avoid;
-                margin-bottom: 1px;
+                margin-bottom: 2px;
                 print-color-adjust: exact;
             }
             .card {
                 box-shadow: none;
-                padding: 1px; /* Reduced padding */
-                margin-top: 1px;
+                padding: 2px; /* Adjusted padding */
+                margin-top: 2px;
                 border: 1px solid #ccc;
                 background-color: #fff;
                 page-break-inside: avoid;
                 print-color-adjust: exact;
             }
             .promo-detail {
-                font-size: 0.5em !important; /* Adjusted font size */
+                font-size: 0.6em !important; /* Adjusted font size */
                 margin-top: 0px;
                 line-height: 1.1;
                 color: #666;
                 print-color-adjust: exact;
             }
             .holiday-notes {
-                font-size: 0.5em !important; /* Adjusted font size */
+                font-size: 0.6em !important; /* Adjusted font size */
             }
             .week-label-bubble {
                 background-color: #e0e0e0;
                 color: #333;
-                font-size: 0.5em !important; /* Adjusted font size */
+                font-size: 0.6em !important; /* Adjusted font size */
                 padding: 1px 3px;
                 box-shadow: none;
                 border: 1px solid #999;
@@ -2263,9 +2268,9 @@ const App = () => {
                 print-color-adjust: exact;
             }
             .pay-periods-container {
-                margin-top: 5px !important; /* Adjusted margin */
-                padding: 5px !important; /* Adjusted padding */
-                font-size: 0.7em !important; /* Adjusted font size */
+                margin-top: 8px !important; /* Adjusted margin */
+                padding: 8px !important; /* Adjusted padding */
+                font-size: 0.8em !important; /* Adjusted font size */
                 border: 1px solid #99d6ff !important;
                 background-color: #e6f7ff !important;
                 print-color-adjust: exact;
