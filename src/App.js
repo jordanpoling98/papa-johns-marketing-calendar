@@ -714,13 +714,6 @@ const App = () => {
     }
   };
 
-  // This function is no longer needed as background is static.
-  const updateSelectedBackgroundInFirestore = async () => {
-    console.log("Background is now static. No Firestore update for dynamic background needed.");
-    // No actual Firestore operation here as the background is fixed.
-  };
-
-
   // Helper to chunk the calendar data into weeks for table rendering
   const chunkIntoWeeks = (data) => {
     const weeks = [];
